@@ -49,7 +49,7 @@ const CrispChat = (): null => {
 // 1. SessionProvider: Allow the useSession from next-auth (find out if user is auth or not)
 // 2. NextTopLoader: Show a progress bar at the top when navigating between pages
 // 3. Toaster: Show Success/Error messages anywhere from the app with toast()
-// 4. Tooltip: Show tooltips if any JSX elements has these 2 attributes: data-tooltip-id="tooltip" data-tooltip-content=""
+// 4. Tooltip: Show a tooltip if any JSX element has these 2 attributes: data-tooltip-id="tooltip" data-tooltip-content=""
 // 5. CrispChat: Set Crisp customer chat support (see above)
 const ClientLayout = ({ children }: { children: ReactNode }) => {
   return (
@@ -68,7 +68,7 @@ const ClientLayout = ({ children }: { children: ReactNode }) => {
           }}
         />
 
-        {/* Show tooltips if any JSX elements has these 2 attributes: data-tooltip-id="tooltip" data-tooltip-content="" */}
+        {/* Show a tooltip if any JSX element has these 2 attributes: data-tooltip-id="tooltip" data-tooltip-content="" */}
         <Tooltip
           id="tooltip"
           className="z-[60] !opacity-100 max-w-sm shadow-lg"

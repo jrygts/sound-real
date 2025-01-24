@@ -13,7 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 // This is where we receive Stripe webhook events
-// It used to update the user data, send emails, etc...
+// It's used to update user data, send emails, etc...
 // By default, it'll store the user in the database
 // See more: https://shipfa.st/docs/features/payments
 export async function POST(req: NextRequest) {
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
         let user;
 
-        // Get or create the user. userId is normally pass in the checkout session (clientReferenceID) to identify the user when we get the webhook event
+        // Get or create the user. userId is normally passed in the checkout session (clientReferenceID) to identify the user when we get the webhook event
         if (userId) {
           user = await User.findById(userId);
         } else if (customer.email) {
@@ -96,14 +96,14 @@ export async function POST(req: NextRequest) {
 
       case "checkout.session.expired": {
         // User didn't complete the transaction
-        // You don't need to do anything here, by you can send an email to the user to remind him to complete the transaction, for instance
+        // You don't need to do anything here, but you can send an email to the user to remind them to complete the transaction, for instance
         break;
       }
 
       case "customer.subscription.updated": {
         // The customer might have changed the plan (higher or lower plan, cancel soon etc...)
         // You don't need to do anything here, because Stripe will let us know when the subscription is canceled for good (at the end of the billing cycle) in the "customer.subscription.deleted" event
-        // You can update the user data to show a "Cancel soon" badge for instance
+        // You can update the user data to show a "Subscription ending soon" badge for instance
         break;
       }
 
