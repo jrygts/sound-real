@@ -6,39 +6,80 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import ButtonSignin from "./ButtonSignin";
+import ButtonAccount from "./ButtonAccount";
 import logo from "@/app/icon.png";
 import config from "@/config";
-
-const links: {
-  href: string;
-  label: string;
-}[] = [
-  {
-    href: "/#pricing",
-    label: "Pricing",
-  },
-  {
-    href: "/#testimonials",
-    label: "Reviews",
-  },
-  {
-    href: "/#faq",
-    label: "FAQ",
-  },
-];
-
-const cta: JSX.Element = <ButtonSignin extraStyle="btn-primary" />;
+import { createClient } from "@/libs/supabase/client";
+import type { User } from '@supabase/supabase-js';
 
 // A header with a logo on the left, links in the center (like Pricing, etc...), and a CTA (like Get Started or Login) on the right.
 // The header is responsive, and on mobile, the links are hidden behind a burger button.
 export default function Header() {
   const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const supabase = createClient();
 
   // setIsOpen(false) when the route changes (i.e: when the user clicks on a link on mobile)
   useEffect(() => {
     setIsOpen(false);
   }, [searchParams]);
+
+  // Authentication detection
+  useEffect(() => {
+    let mounted = true;
+
+    const checkAuth = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (mounted) {
+          setUser(user);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    };
+
+    // Initial check
+    checkAuth();
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (mounted) {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  // Define navigation links based on authentication state
+  const links = user 
+    ? [
+        { href: '/dashboard', label: 'Dashboard' },
+        { href: '/', label: 'Home' },
+        { href: '/pricing', label: 'Pricing' },
+      ]
+    : [
+        { href: '/', label: 'Home' },
+        { href: '/pricing', label: 'Pricing' },
+        { href: '/blog', label: 'Blog' },
+      ];
+
+  const cta: JSX.Element = user ? <ButtonAccount /> : <ButtonSignin extraStyle="btn-primary" />;
 
   return (
     <Suspense fallback={<div className="h-16 bg-white" />}>
@@ -93,11 +134,13 @@ export default function Header() {
 
           {/* Your links on large screens */}
           <div className="hidden lg:flex lg:justify-center lg:gap-12 lg:items-center">
-            {links.map((link) => (
+            {links.map((link, index) => (
               <Link
                 href={link.href}
                 key={link.href}
-                className="link link-hover"
+                className={`link link-hover ${
+                  index === 0 && user ? 'text-primary font-semibold' : ''
+                }`}
                 title={link.label}
               >
                 {link.label}
@@ -159,11 +202,13 @@ export default function Header() {
             <div className="flow-root mt-6">
               <div className="py-4">
                 <div className="flex flex-col gap-y-4 items-start">
-                  {links.map((link) => (
+                  {links.map((link, index) => (
                     <Link
                       href={link.href}
                       key={link.href}
-                      className="link link-hover"
+                      className={`link link-hover ${
+                        index === 0 && user ? 'text-primary font-semibold text-lg' : ''
+                      }`}
                       title={link.label}
                     >
                       {link.label}
