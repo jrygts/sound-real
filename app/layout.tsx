@@ -17,29 +17,9 @@ export const viewport: Viewport = {
 	initialScale: 1,
 };
 
-// Enhanced SEO tags for AI text humanization tool
-export const metadata = getSEOTags({
-	title: 'AI Text Humanizer - Make ChatGPT Text Undetectable | SoundReal',
-	description: 'Transform AI-generated content into natural, human-sounding text that bypasses AI detectors. Free AI humanizer tool with instant results and 100% undetectable output.',
-	canonicalUrlRelative: '/',
-	keywords: [
-		'ai humanizer',
-		'make ai text human',
-		'bypass ai detector',
-		'chatgpt humanizer',
-		'ai to human text',
-		'undetectable ai',
-		'ai content detector',
-		'humanize chatgpt text',
-		'turnitin bypass',
-		'make chatgpt undetectable'
-	],
-	openGraph: {
-		title: 'SoundReal - Make AI Text Sound Human',
-		description: 'Transform AI content into natural human text that bypasses all AI detectors instantly',
-		url: `https://${config.domainName}`,
-	},
-});
+// This adds default SEO tags to all pages in our app.
+// You can override them in each page passing params to getSOTags() function.
+export const metadata = getSEOTags();
 
 export default function RootLayout({ children }: { children: ReactNode }) {
 	return (

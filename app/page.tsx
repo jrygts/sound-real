@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Zap, Shield, Clock } from 'lucide-react'
-import { renderSchemaTags, renderOrganizationSchema } from '@/libs/seo'
 
 export default function Page() {
   const [text, setText] = useState('')
@@ -46,10 +45,6 @@ export default function Page() {
 
   return (
     <>
-      {/* Schema markup for SEO */}
-      {renderSchemaTags()}
-      {renderOrganizationSchema()}
-      
       <main>
         {/* Hero Section */}
         <section className="bg-gradient-to-b from-slate-50 to-white">

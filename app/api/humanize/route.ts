@@ -14,8 +14,9 @@ export async function POST(request: Request) {
     const supabase = createClient();
     const { text } = await request.json();
     
-    // Validate input
-    if (!text || text.length > 1000) {
+    // Validate input - Fix: Count words instead of characters
+    const wordCount = text?.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+    if (!text || wordCount < 1 || wordCount > 1000) {
       return NextResponse.json(
         { error: "Text must be between 1 and 1000 words" },
         { status: 400 }
