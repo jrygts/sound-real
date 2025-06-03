@@ -25,20 +25,22 @@ const config = {
             ? "price_1Niyy5AxyNprDp7iZIqEyD2h"
             : "price_456",
         //  REQUIRED - Name of the plan, displayed on the pricing page
-        name: "Starter",
+        name: "Basic",
         // A friendly description of the plan, displayed on the pricing page. Tip: explain why this plan and not others
-        description: "Perfect for small projects",
+        description: "Perfect for getting started",
         // The price you want to display, the one user will be charged on Stripe.
-        price: 99,
+        price: 6.99,
         // If you have an anchor price (i.e. $29) that you want to display crossed out, put it here. Otherwise, leave it empty
-        priceAnchor: 149,
+        priceAnchor: null,
         features: [
-          {
-            name: "NextJS boilerplate",
-          },
-          { name: "User oauth" },
-          { name: "Database" },
-          { name: "Emails" },
+          { name: "5,000 words per month" },
+          { name: "Bypass all AI detectors (incl. Turnitin & GPTZero)" },
+          { name: "Basic Humanization Engine" },
+          { name: "Plagiarism-free" },
+          { name: "Error-free rewriting" },
+          { name: "Undetectable results" },
+          { name: "Unlimited AI detection" },
+          { name: "20 languages supported" },
         ],
       },
       {
@@ -48,19 +50,35 @@ const config = {
             : "price_456",
         // This plan will look different on the pricing page, it will be highlighted. You can only have one plan with isFeatured: true
         isFeatured: true,
-        name: "Advanced",
-        description: "You need more power",
-        price: 149,
-        priceAnchor: 299,
+        name: "Plus",
+        description: "Most popular for serious content creators",
+        price: 19.99,
+        priceAnchor: null,
         features: [
-          {
-            name: "NextJS boilerplate",
-          },
-          { name: "User oauth" },
-          { name: "Database" },
-          { name: "Emails" },
-          { name: "1 year of updates" },
-          { name: "24/7 support" },
+          { name: "15,000 words per month" },
+          { name: "Everything in Basic PLUS:" },
+          { name: "Advanced Humanization Engine" },
+          { name: "50+ languages supported" },
+          { name: "Advanced Turnitin Bypass Engine" },
+          { name: "Human-like results" },
+          { name: "Unlimited grammar checks" },
+          { name: "Fast mode" },
+        ],
+      },
+      {
+        priceId:
+          process.env.NODE_ENV === "development"
+            ? "price_1O5KtcAxyNprDp7iftKnrrpw"
+            : "price_456",
+        name: "Pro",
+        description: "For power users who need the best",
+        price: 39.99,
+        priceAnchor: null,
+        features: [
+          { name: "30,000 words per month" },
+          { name: "Everything in Plus PLUS:" },
+          { name: "Ultra-human writing output" },
+          { name: "Priority support" },
         ],
       },
     ],
