@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import { FileText, Download, BarChart3, Copy } from 'lucide-react'
-import ButtonAccount from '@/components/ButtonAccount'
 
 export default function Dashboard() {
   const [transformations, setTransformations] = useState<any[]>([])
@@ -71,7 +70,6 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-          <ButtonAccount />
         </div>
 
         {/* Stats */}

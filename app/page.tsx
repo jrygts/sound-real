@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Zap, Shield, Clock } from 'lucide-react'
-import Link from "next/link"
-import ButtonSignin from "@/components/ButtonSignin"
 
 export default function Page() {
   const [text, setText] = useState('')
@@ -47,10 +45,6 @@ export default function Page() {
 
   return (
     <>
-      <header className="p-4 flex justify-end max-w-7xl mx-auto">
-        <ButtonSignin text="Login" />
-      </header>
-
       <main>
         {/* Hero Section */}
         <section className="bg-gradient-to-b from-slate-50 to-white">
