@@ -1,0 +1,56 @@
+{
+  "projectName": "sound-real",
+  "rootDir": ".",
+  "include": [
+    "app/**/*",
+    "components/**/*",
+    "lib/**/*",
+    "public/**/*",
+    "styles/**/*",
+    "docs/**/*"
+  ],
+  "exclude": [
+    "node_modules/**/*",
+    ".next/**/*",
+    "out/**/*",
+    ".git/**/*"
+  ],
+  "formatOnSave": true,
+  "lintOnSave": true,
+  "organizeImportsOnSave": true,
+  "rules": {
+    "imports": {
+      "order": [
+        "react",
+        "next",
+        "@supabase",
+        "@stripe",
+        "components",
+        "lib",
+        "styles",
+        "types"
+      ]
+    },
+    "naming": {
+      "components": "PascalCase",
+      "pages": "kebab-case",
+      "utils": "camelCase",
+      "types": "PascalCase"
+    },
+    "structure": {
+      "components": "components/**/*",
+      "pages": "app/**/*",
+      "styles": "styles/**/*",
+      "utils": "lib/**/*",
+      "types": "types/**/*"
+    }
+  },
+  "extensions": {
+    "recommended": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "bradlc.vscode-tailwindcss",
+      "ms-vscode.vscode-typescript-next"
+    ]
+  }
+} 
