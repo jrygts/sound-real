@@ -1,4 +1,4 @@
--- Function to increment usage counter
+-- Function to increment a column value
 CREATE OR REPLACE FUNCTION increment(
   table_name text,
   column_name text,
