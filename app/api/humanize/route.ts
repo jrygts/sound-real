@@ -2,6 +2,7 @@ import { createClient } from "@/libs/supabase/server";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { cookies } from "next/headers";
+import { cleanMarkdownForHumanization } from "@/lib/textProcessing";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -22,6 +23,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    
+    // NEW: Clean markdown before AI processing
+    const cleanedText = cleanMarkdownForHumanization(text);
     
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser();
@@ -89,27 +93,30 @@ export async function POST(request: Request) {
     }
     
     // Transform text with OpenAI
-    const prompt = `You are an expert at rewriting AI-generated text to sound naturally human. 
+    const prompt = `You are an expert at rewriting AI-generated text to sound naturally human. The text below has been cleaned of markdown formatting to help you focus on creating natural, conversational content.
 
-Rewrite the following text to:
-- Use varied sentence structures and lengths
-- Include natural transitions and flow
-- Add subtle imperfections humans make
-- Maintain the original meaning and facts
-- Sound conversational and authentic
-- Avoid repetitive AI patterns
+Your task is to rewrite this text to:
+- Use varied sentence structures and natural rhythm
+- Include subtle human writing patterns and transitions  
+- Add conversational elements where appropriate
+- Maintain the original meaning and all factual information
+- Create engaging, readable prose that flows naturally
+- Eliminate robotic or repetitive AI patterns
+- Sound like it was written by a knowledgeable human, not an AI
 
-Original text:
-${text}
+Focus on making the text feel authentic and naturally written while preserving all the important information.
 
-Rewritten human-sounding version:`;
+Text to humanize:
+${cleanedText}
+
+Natural, human-sounding version:`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
-          content: "You transform AI text into natural human writing while preserving meaning."
+          content: "You are an expert at transforming AI-generated text into natural, human-sounding content. Focus on creating authentic, conversational prose that maintains factual accuracy while eliminating robotic patterns."
         },
         {
           role: "user",
@@ -117,10 +124,10 @@ Rewritten human-sounding version:`;
         }
       ],
       temperature: 0.8,
-      max_tokens: Math.min(text.split(/\s+/).length * 2, 2000),
+      max_tokens: Math.min(cleanedText.split(/\s+/).length * 2, 2000),
     });
     
-    const humanizedText = completion.choices[0].message.content || text;
+    const humanizedText = completion.choices[0].message.content || cleanedText;
     
     // Mock AI detection scores
     const aiScoreBefore = 0.87 + Math.random() * 0.12;
@@ -130,11 +137,11 @@ Rewritten human-sounding version:`;
     if (user) {
       await supabase.from("transformations").insert({
         user_id: user.id,
-        original_text: text,
+        original_text: text, // Keep original with markdown for reference
         humanized_text: humanizedText,
         ai_score_before: aiScoreBefore,
         ai_score_after: aiScoreAfter,
-        word_count: text.split(/\s+/).length,
+        word_count: cleanedText.split(/\s+/).length,
       });
       
       // Update usage
