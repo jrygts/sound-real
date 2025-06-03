@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import config from "@/config";
 import ButtonCheckout from "./ButtonCheckout";
-import { useRouter } from "next/navigation";
 import Link from 'next/link';
 
 // <Pricing/> displays the pricing plans for your app
@@ -11,7 +10,6 @@ import Link from 'next/link';
 // <ButtonCheckout /> renders a button that will redirect the user to Stripe checkout called the /api/stripe/create-checkout API endpoint with the correct priceId
 
 const Pricing = () => {
-  const router = useRouter();
   const [isAnnual, setIsAnnual] = useState(false);
 
   const getPrice = (price: number) => {

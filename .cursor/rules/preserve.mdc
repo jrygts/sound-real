@@ -1,5 +1,7 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
+Please preserve what you can by double-checking the entire database before creating something from scratch.
+We are building from a template so some of the boilerplate may already be there and just need to be altered.
