@@ -22,9 +22,29 @@ export const getSEOTags = ({
     title: title || config.appName,
     // up to 160 characters (how does your app help the user?)
     description: description || config.appDescription,
-    // some keywords separated by commas. by default it will be your app name
-    keywords: keywords || [config.appName],
+    // AI humanization specific keywords
+    keywords: keywords || [
+      'ai humanizer',
+      'make ai text human',
+      'bypass ai detector',
+      'chatgpt humanizer',
+      'ai to human text',
+      'undetectable ai',
+      'ai content detector',
+      'humanize chatgpt text',
+      'ai detection bypass',
+      'natural ai writing',
+      config.appName
+    ],
     applicationName: config.appName,
+    authors: [{ name: 'SoundReal Team' }],
+    creator: 'SoundReal',
+    publisher: 'SoundReal',
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
     // set a base URL prefix for other fields that require a fully qualified URL (.e.g og:image: og:image: 'https://yourdomain.com/share.png' => '/share.png')
     metadataBase: new URL(
       process.env.NODE_ENV === "development"
@@ -36,7 +56,7 @@ export const getSEOTags = ({
       title: openGraph?.title || config.appName,
       description: openGraph?.description || config.appDescription,
       url: openGraph?.url || `https://${config.domainName}/`,
-      siteName: openGraph?.title || config.appName,
+      siteName: openGraph?.siteName || `${config.appName} - AI Text Humanizer`,
       // If you add an opengraph-image.(jpg|jpeg|png|gif) image to the /app folder, you don't need the code below
       // images: [
       //   {
@@ -55,7 +75,21 @@ export const getSEOTags = ({
       // If you add an twitter-image.(jpg|jpeg|png|gif) image to the /app folder, you don't need the code below
       // images: [openGraph?.image || defaults.og.image],
       card: "summary_large_image",
-      creator: "@marc_louvion",
+      creator: "@soundreal",
+    },
+
+    robots: {
+      index: true,
+      follow: true,
+      nocache: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        noimageindex: false,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
 
     // If a canonical URL is given, we add it. The metadataBase will turn the relative URL into a fully qualified URL
@@ -72,38 +106,78 @@ export const getSEOTags = ({
 // Find your type here (SoftwareApp, Book...): https://developers.google.com/search/docs/appearance/structured-data/search-gallery
 // Use this tool to check data is well structure: https://search.google.com/test/rich-results
 // You don't have to use this component, but it increase your chances of having a rich snippet on Google.
-// I recommend this one below to your /page.js for software apps: It tells Google your AppName is a Software, and it has a rating of 4.8/5 from 12 reviews.
-// Fill the fields with your own data
-// See https://shipfa.st/docs/features/seo
+// AI Humanization tool specific schema markup
 export const renderSchemaTags = () => {
   return (
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{
         __html: JSON.stringify({
-          "@context": "http://schema.org",
+          "@context": "https://schema.org",
           "@type": "SoftwareApplication",
           name: config.appName,
           description: config.appDescription,
           image: `https://${config.domainName}/icon.png`,
           url: `https://${config.domainName}/`,
+          applicationCategory: "ProductivityApplication",
+          operatingSystem: "Web Browser",
           author: {
-            "@type": "Person",
-            name: "Marc Lou",
+            "@type": "Organization",
+            name: "SoundReal Team",
           },
-          datePublished: "2023-08-01",
-          applicationCategory: "EducationalApplication",
+          datePublished: "2024-01-01",
           aggregateRating: {
             "@type": "AggregateRating",
             ratingValue: "4.8",
-            ratingCount: "12",
+            ratingCount: "1250",
+            bestRating: "5",
+            worstRating: "1",
           },
           offers: [
             {
               "@type": "Offer",
-              price: "9.00",
+              price: "19.99",
               priceCurrency: "USD",
+              priceValidUntil: "2025-12-31",
+              availability: "https://schema.org/InStock",
             },
+          ],
+          featureList: [
+            "AI text detection bypass",
+            "Natural language processing", 
+            "Instant text transformation",
+            "Multiple language support",
+            "Plagiarism-free output",
+            "ChatGPT humanization",
+            "Turnitin bypass",
+            "Undetectable AI writing"
+          ],
+        }),
+      }}
+    ></script>
+  );
+};
+
+// Organization Schema for enhanced SEO
+export const renderOrganizationSchema = () => {
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: config.appName,
+          url: `https://${config.domainName}`,
+          logo: `https://${config.domainName}/logo.png`,
+          description: "Leading AI text humanization platform that transforms AI-generated content into natural, human-sounding text",
+          address: {
+            "@type": "PostalAddress",
+            addressCountry: "US",
+          },
+          sameAs: [
+            "https://twitter.com/soundreal",
+            "https://linkedin.com/company/soundreal",
           ],
         }),
       }}

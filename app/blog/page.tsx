@@ -5,10 +5,24 @@ import config from "@/config";
 import { getSEOTags } from "@/libs/seo";
 
 export const metadata = getSEOTags({
-  title: `${config.appName} Blog | Stripe Chargeback Protection`,
+  title: `${config.appName} Blog | AI Detection & Humanization Tips`,
   description:
-    "Learn how to prevent chargebacks, how to accept payments online, and keep your Stripe account in good standing",
+    "Learn the latest strategies for humanizing AI text, bypassing AI detectors, and creating natural-sounding content. Expert tips on making ChatGPT and AI writing undetectable.",
   canonicalUrlRelative: "/blog",
+  keywords: [
+    'ai detection tips',
+    'humanize ai text guide',
+    'bypass ai detector tutorial',
+    'chatgpt humanization blog',
+    'ai writing tips',
+    'undetectable ai content',
+    'turnitin bypass guide'
+  ],
+  openGraph: {
+    title: `${config.appName} Blog - AI Detection & Humanization Tips`,
+    description: 'Expert guides on humanizing AI text and bypassing AI detectors',
+    url: `https://${config.domainName}/blog`,
+  },
 });
 
 export default async function Blog() {
@@ -25,8 +39,7 @@ export default async function Blog() {
           The {config.appName} Blog
         </h1>
         <p className="text-lg opacity-80 leading-relaxed">
-          Learn how to ship your startup in days, not weeks. And get the latest
-          updates about the boilerplate
+          Learn how to humanize AI text, bypass AI detectors, and create natural-sounding content that passes all detection tools.
         </p>
       </section>
 
