@@ -2,7 +2,7 @@ import { createClient } from "@/libs/supabase/server";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { cookies } from "next/headers";
-import { cleanMarkdownForHumanization } from "@/lib/textProcessing";
+import { cleanMarkdownForHumanization } from "@/libs/textProcessing";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
