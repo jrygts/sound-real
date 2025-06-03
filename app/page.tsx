@@ -3,12 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Zap, Shield, Clock } from 'lucide-react'
+import PreviewModal from '@/components/PreviewModal'
 
 export default function Page() {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [previewData, setPreviewData] = useState<any>(null)
   const router = useRouter()
 
   const handleTransform = async () => {
@@ -18,26 +21,102 @@ export default function Page() {
     setError('')
     
     try {
-      const response = await fetch('/api/humanize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      })
-      
-      const data = await response.json()
-      
-      if (!response.ok) {
-        if (data.error?.includes('sign up')) {
-          router.push('/signup')
+      // First check auth status
+      const authResponse = await fetch('/api/auth/me')
+      const isAuthenticated = authResponse.ok
+
+      if (!isAuthenticated) {
+        // For non-authenticated users: Show value demonstration
+        const previewResponse = await fetch('/api/humanize/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        })
+
+        if (previewResponse.ok) {
+          const preview = await previewResponse.json()
+          setPreviewData(preview)
+          setShowPreviewModal(true)
         } else {
-          setError(data.error || 'Something went wrong')
+          // Fallback to pricing if preview fails
+          router.push('/pricing?intent=transform')
         }
-        return
+      } else {
+        // Check subscription status for authenticated users
+        const subscriptionResponse = await fetch('/api/subscription/status')
+        
+        if (subscriptionResponse.ok) {
+          const subscriptionData = await subscriptionResponse.json()
+
+          if (subscriptionData.hasActiveSubscription) {
+            // Full access - proceed with normal transformation
+            const response = await fetch('/api/humanize', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text }),
+            })
+            
+            const data = await response.json()
+            
+            if (!response.ok) {
+              setError(data.error || 'Something went wrong')
+              return
+            }
+            
+            setResult(data)
+          } else {
+            // Authenticated but not subscribed - show preview + upgrade
+            const previewResponse = await fetch('/api/humanize/preview', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            })
+
+            if (previewResponse.ok) {
+              const preview = await previewResponse.json()
+              setPreviewData({ ...preview, isAuthenticated: true })
+              setShowPreviewModal(true)
+            } else {
+              router.push('/pricing?intent=transform&authenticated=true')
+            }
+          }
+        } else {
+          // Subscription check failed - show preview
+          const previewResponse = await fetch('/api/humanize/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          })
+
+          if (previewResponse.ok) {
+            const preview = await previewResponse.json()
+            setPreviewData({ ...preview, isAuthenticated: true })
+            setShowPreviewModal(true)
+          } else {
+            router.push('/pricing?intent=transform')
+          }
+        }
       }
-      
-      setResult(data)
     } catch (error) {
-      setError('Failed to transform text')
+      console.error('Transform error:', error)
+      // Fallback to preview on any error
+      try {
+        const previewResponse = await fetch('/api/humanize/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        })
+
+        if (previewResponse.ok) {
+          const preview = await previewResponse.json()
+          setPreviewData(preview)
+          setShowPreviewModal(true)
+        } else {
+          router.push('/pricing?intent=transform')
+        }
+      } catch {
+        router.push('/pricing?intent=transform')
+      }
     } finally {
       setLoading(false)
     }
@@ -106,7 +185,7 @@ export default function Page() {
                     className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {loading ? (
-                      'Transforming...'
+                      'Processing...'
                     ) : (
                       <>
                         Transform Text
@@ -116,7 +195,7 @@ export default function Page() {
                   </button>
 
                   <p className="text-center text-sm text-slate-500 mt-4">
-                    Free users get 3 transformations daily • No signup required
+                    ✨ Try it now • See instant preview • No signup required
                   </p>
                 </>
               ) : (
@@ -230,6 +309,19 @@ export default function Page() {
           </div>
         </section>
       </main>
+
+      {/* Preview Modal */}
+      {showPreviewModal && previewData && (
+        <PreviewModal
+          preview={previewData.preview}
+          metrics={previewData.metrics}
+          fullTextLength={previewData.fullTextLength}
+          previewLength={previewData.previewLength}
+          isOpen={showPreviewModal}
+          onClose={() => setShowPreviewModal(false)}
+          isAuthenticated={previewData.isAuthenticated}
+        />
+      )}
     </>
   )
 }
