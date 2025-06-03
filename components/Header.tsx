@@ -18,7 +18,8 @@ export default function Header() {
   const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
   const supabase = createClient();
 
   // setIsOpen(false) when the route changes (i.e: when the user clicks on a link on mobile)
@@ -26,29 +27,38 @@ export default function Header() {
     setIsOpen(false);
   }, [searchParams]);
 
-  // Authentication detection
+  // Optimized authentication detection
   useEffect(() => {
     let mounted = true;
 
     const checkAuth = async () => {
       try {
+        // Only set loading to true if we haven't checked auth yet
+        if (!authChecked) {
+          setLoading(true);
+        }
+
         const { data: { user }, error } = await supabase.auth.getUser();
         
         if (mounted) {
           setUser(user);
+          setAuthChecked(true);
           setLoading(false);
         }
       } catch (err) {
         console.error('Auth check failed:', err);
         if (mounted) {
           setUser(null);
+          setAuthChecked(true);
           setLoading(false);
         }
       }
     };
 
-    // Initial check
-    checkAuth();
+    // Initial check - only if not already checked
+    if (!authChecked) {
+      checkAuth();
+    }
 
     // Listen for auth changes
     const {
@@ -56,6 +66,7 @@ export default function Header() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (mounted) {
         setUser(session?.user ?? null);
+        setAuthChecked(true);
         setLoading(false);
       }
     });
@@ -64,7 +75,7 @@ export default function Header() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, authChecked]);
 
   // Define navigation links based on authentication state
   const links = user 
@@ -79,7 +90,20 @@ export default function Header() {
         { href: '/blog', label: 'Blog' },
       ];
 
-  const cta: JSX.Element = user ? <ButtonAccount /> : <ButtonSignin extraStyle="btn-primary" />;
+  // Improved CTA rendering - show sign in button immediately if no user, even during loading
+  const cta: JSX.Element = (
+    <>
+      {loading && !authChecked ? (
+        <div className="btn btn-disabled">
+          <span className="loading loading-spinner loading-xs"></span>
+        </div>
+      ) : user ? (
+        <ButtonAccount />
+      ) : (
+        <ButtonSignin extraStyle="btn-primary" />
+      )}
+    </>
+  );
 
   return (
     <Suspense fallback={<div className="h-16 bg-white" />}>

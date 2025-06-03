@@ -18,19 +18,61 @@ const ButtonSignin = ({
   extraStyle?: string;
 }) => {
   const supabase = createClient();
-  const [user, setUser] = useState<User>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
 
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    let mounted = true;
 
-      setUser(user);
+    const getUser = async () => {
+      try {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (mounted) {
+          setUser(user);
+          setAuthChecked(true);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('ButtonSignin auth check failed:', error);
+        if (mounted) {
+          setUser(null);
+          setAuthChecked(true);
+          setLoading(false);
+        }
+      }
     };
 
-    getUser();
-  }, [supabase]);
+    if (!authChecked) {
+      getUser();
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (mounted) {
+        setUser(session?.user ?? null);
+        setAuthChecked(true);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase, authChecked]);
+
+  if (loading && !authChecked) {
+    return (
+      <div className={`btn btn-disabled ${extraStyle ? extraStyle : ""}`}>
+        <span className="loading loading-spinner loading-xs"></span>
+        Loading...
+      </div>
+    );
+  }
 
   if (user) {
     return (
