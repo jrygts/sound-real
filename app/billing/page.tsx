@@ -132,7 +132,9 @@ export default function BillingPage() {
                   Usage Overview
                 </h2>
                 <div className={`px-3 py-1 rounded-full text-sm font-medium ${getUsageColor()}`}>
-                  {usageInfo.isAdmin ? 'Unlimited' : `${usageInfo.totalUsed}/${usageInfo.limit === -1 ? '∞' : usageInfo.limit}`}
+                  {usageInfo.isAdmin ? 'Unlimited' : 
+                   usageInfo.plan === 'Free' ? `${usageInfo.totalUsed}/5 daily` :
+                   usageInfo.limit === -1 ? 'Unlimited' : `${usageInfo.totalUsed}/${usageInfo.limit}`}
                 </div>
               </div>
 
@@ -152,7 +154,13 @@ export default function BillingPage() {
                   <div>
                     <div className="flex justify-between text-sm text-slate-600 mb-2">
                       <span>Transformations Used</span>
-                      <span>{usageInfo.totalUsed} of {usageInfo.limit === -1 ? 'unlimited' : usageInfo.limit}</span>
+                      <span>
+                        {usageInfo.totalUsed} of {
+                          usageInfo.plan === 'Free' ? '5 daily' :
+                          usageInfo.limit === -1 ? 'unlimited' : 
+                          `${usageInfo.limit} monthly`
+                        }
+                      </span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2">
                       <div 
@@ -192,8 +200,8 @@ export default function BillingPage() {
                     </div>
                   )}
 
-                  {/* Low Usage Warning */}
-                  {usageInfo.remaining <= 5 && usageInfo.remaining > 0 && usageInfo.plan === 'Free' && (
+                  {/* Low Usage Warning for Free Users */}
+                  {usageInfo.remaining <= 2 && usageInfo.remaining > 0 && usageInfo.plan === 'Free' && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
                       <div className="flex items-center gap-3">
                         <Zap className="w-5 h-5 text-yellow-600" />
@@ -213,7 +221,7 @@ export default function BillingPage() {
                     </div>
                   )}
 
-                  {/* No Usage Left */}
+                  {/* No Usage Left for Free Users */}
                   {usageInfo.remaining <= 0 && usageInfo.plan === 'Free' && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
                       <div className="flex items-center gap-3">
@@ -221,13 +229,28 @@ export default function BillingPage() {
                         <div>
                           <h3 className="font-medium text-red-900">Daily Limit Reached</h3>
                           <p className="text-sm text-red-700">
-                            You&apos;ve used all your free transformations for today.
+                            You&apos;ve used all your free transformations for today. Your limit resets tomorrow at midnight.
                             <button 
                               onClick={() => router.push('/pricing')}
                               className="text-red-800 underline ml-1 hover:text-red-900"
                             >
                               Upgrade for unlimited access
                             </button>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pro User Success Message */}
+                  {usageInfo.plan === 'Pro' && usageInfo.limit === -1 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <div>
+                          <h3 className="font-medium text-green-900">Unlimited Transformations</h3>
+                          <p className="text-sm text-green-700">
+                            You have unlimited transformations as a Pro subscriber. Transform as much as you need!
                           </p>
                         </div>
                       </div>

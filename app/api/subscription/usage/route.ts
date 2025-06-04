@@ -69,76 +69,69 @@ export async function GET() {
       });
     }
 
-    // Get user profile for subscription info
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("stripe_subscription_status, stripe_customer_id, price_id, has_access")
-      .eq("id", user.id)
-      .single();
+    // Use the new database function to get accurate usage data
+    const { data: usageResult, error: usageError } = await supabase
+      .rpc('get_user_usage', { user_id: user.id });
 
-    if (profileError) {
-      console.error('Profile fetch error:', profileError);
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to fetch user profile'
-      }, { status: 500 });
-    }
+    if (usageError) {
+      console.error('📊 [Usage] Database function error:', usageError);
+      // Fallback to basic profile check if function fails
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("plan_type, transformations_used, transformations_limit, stripe_subscription_status")
+        .eq("id", user.id)
+        .single();
 
-    const hasActiveSubscription = profile?.stripe_subscription_status === "active";
-    const planLimits = getPlanLimits(profile?.price_id);
-
-    // Get usage for current month
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    // For free users, reset daily instead of monthly
-    const resetDate = hasActiveSubscription ? endOfMonth : new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const usageStartDate = hasActiveSubscription ? startOfMonth : new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    let totalUsed = 0;
-    
-    // Try to get usage data, but handle gracefully if table doesn't exist
-    try {
-      const { data: usageRecords, error: usageError } = await supabase
-        .from("user_usage")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("created_at", usageStartDate.toISOString())
-        .lte("created_at", (hasActiveSubscription ? endOfMonth : resetDate).toISOString());
-
-      if (usageError) {
-        if (usageError.code === '42P01') {
-          // Table doesn't exist - this is expected if migration hasn't been run
-          console.warn('📊 [Usage] user_usage table not found - migration needed');
-          totalUsed = 0;
-        } else {
-          console.error('📊 [Usage] Usage fetch error:', usageError);
-          totalUsed = 0;
-        }
-      } else {
-        totalUsed = usageRecords?.length || 0;
+      if (profileError) {
+        console.error('📊 [Usage] Profile fetch error:', profileError);
+        return NextResponse.json(
+          { error: 'Failed to fetch usage data' },
+          { status: 500 }
+        );
       }
-    } catch (error) {
-      console.error('📊 [Usage] Error querying usage table:', error);
-      totalUsed = 0;
+
+      // Basic fallback logic
+      const planType = profile?.plan_type || (profile?.stripe_subscription_status === 'active' ? 'Pro' : 'Free');
+      const limit = planType === 'Free' ? 5 : -1;
+      const used = profile?.transformations_used || 0;
+      const remaining = limit === -1 ? -1 : Math.max(0, limit - used);
+
+      return NextResponse.json({
+        success: true,
+        usage: {
+          totalUsed: used,
+          limit: limit,
+          remaining: remaining,
+          plan: planType,
+          hasAccess: remaining > 0 || limit === -1,
+          isAdmin: false,
+          resetDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+        } as UsageData
+      });
     }
 
-    const remaining = Math.max(0, planLimits.limit - totalUsed);
-
-    const usageData: UsageData = {
-      totalUsed,
-      limit: planLimits.limit,
-      remaining,
-      plan: planLimits.name,
-      hasAccess: hasActiveSubscription || remaining > 0,
-      isAdmin: false,
-      resetDate: resetDate.toISOString(),
-    };
+    // Parse the JSON result from the database function
+    const usage = usageResult as any;
+    
+    if (usage.error) {
+      console.error('📊 [Usage] Database function returned error:', usage.error);
+      return NextResponse.json(
+        { error: usage.error },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      usage: usageData
+      usage: {
+        totalUsed: usage.totalUsed || 0,
+        limit: usage.limit || 5,
+        remaining: usage.remaining || 0,
+        plan: usage.plan || 'Free',
+        hasAccess: usage.hasAccess !== false,
+        isAdmin: false,
+        resetDate: usage.resetDate,
+      } as UsageData
     });
 
   } catch (error) {
@@ -168,72 +161,53 @@ export async function POST() {
     if (isAdmin) {
       return NextResponse.json({
         success: true,
-        message: 'Admin usage tracked (unlimited)'
+        message: 'Admin usage tracked (unlimited)',
+        usage: {
+          totalUsed: 0,
+          limit: -1,
+          remaining: -1,
+          plan: "Admin",
+          hasAccess: true,
+          isAdmin: true,
+        } as UsageData
       });
     }
 
-    // Get current usage first to check limits
-    const usageResponse = await GET();
-    const usageData = await usageResponse.json();
+    // Use the new database function to increment usage
+    const { data: incrementResult, error: incrementError } = await supabase
+      .rpc('increment_usage', { user_id: user.id });
 
-    if (!usageData.success) {
+    if (incrementError) {
+      console.error('📊 [Usage] Increment usage error:', incrementError);
       return NextResponse.json(
-        { error: 'Failed to check usage limits' },
+        { error: 'Failed to record usage' },
         { status: 500 }
       );
     }
 
-    const usage = usageData.usage as UsageData;
-
-    // Check if user has reached their limit
-    if (!usage.hasAccess || usage.remaining <= 0) {
+    // Check if usage increment was successful
+    if (!incrementResult) {
+      // Usage limit reached - get current usage for error details
+      const usageResponse = await GET();
+      const usageData = await usageResponse.json();
+      
       return NextResponse.json(
         { 
           error: 'Usage limit reached',
-          usage: usage
+          usage: usageData.usage || null
         },
         { status: 429 } // Too Many Requests
       );
     }
 
-    // Try to record the usage, but handle gracefully if table doesn't exist
-    try {
-      const { error: insertError } = await supabase
-        .from("user_usage")
-        .insert({
-          user_id: user.id,
-          action: "transformation",
-          created_at: new Date().toISOString(),
-        });
-
-      if (insertError) {
-        if (insertError.code === '42P01') {
-          // Table doesn't exist - log warning but don't fail
-          console.warn('📊 [Usage] user_usage table not found - migration needed');
-        } else {
-          console.error('📊 [Usage] Usage recording error:', insertError);
-          return NextResponse.json(
-            { error: 'Failed to record usage' },
-            { status: 500 }
-          );
-        }
-      }
-    } catch (error) {
-      console.warn('📊 [Usage] Error recording usage (table may not exist):', error);
-    }
-
-    // Return updated usage
-    const updatedUsage: UsageData = {
-      ...usage,
-      totalUsed: usage.totalUsed + 1,
-      remaining: usage.remaining - 1,
-      hasAccess: usage.remaining - 1 > 0 || usage.plan !== "Free"
-    };
+    // Get updated usage data
+    const usageResponse = await GET();
+    const usageData = await usageResponse.json();
 
     return NextResponse.json({
       success: true,
       message: 'Usage recorded successfully',
-      usage: updatedUsage
+      usage: usageData.usage || null
     });
 
   } catch (error) {
