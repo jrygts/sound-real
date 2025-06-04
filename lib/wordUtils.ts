@@ -404,4 +404,108 @@ export function needsBillingReset(
     const nextReset = getNextResetDate(planType, periodStartDate ? new Date(periodStartDate) : undefined);
     return now >= nextReset;
   }
+}
+
+// 🧪 TESTING: Manual billing cycle reset function
+export async function resetBillingCycle(userId: string): Promise<void> {
+  const supabase = createClient();
+  
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        words_used: 0,
+        transformations_used: 0,
+        billing_period_start: new Date().toISOString(),
+        last_reset_date: new Date().toISOString()
+      })
+      .eq('id', userId);
+      
+    if (error) {
+      console.error('❌ [resetBillingCycle] Error:', error);
+      throw new Error('Failed to reset billing cycle');
+    }
+    
+    console.log(`🔄 [BillingReset] User ${userId}: Billing cycle reset manually`);
+  } catch (error) {
+    console.error('❌ [resetBillingCycle] Failed:', error);
+    throw error;
+  }
+}
+
+// Calculate days remaining until billing period end
+export function calculateDaysRemaining(billingPeriodEnd?: Date | string): number {
+  if (!billingPeriodEnd) return 0;
+  
+  const now = new Date();
+  const endDate = new Date(billingPeriodEnd);
+  const diffTime = endDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return Math.max(0, diffDays);
+}
+
+// Get transformation limit based on plan type
+export function getTransformationsLimit(planType: string): number {
+  const config = getPlanConfig(planType);
+  return config.transformations_limit;
+}
+
+// Get current billing status information
+export async function getBillingStatus(userId: string): Promise<{
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  daysRemaining: number;
+  planType: string;
+  wordsUsed: number;
+  wordsLimit: number;
+  wordsRemaining: number;
+  nextResetDate: Date;
+}> {
+  const supabase = createClient();
+  
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select(`
+      plan_type,
+      words_used,
+      words_limit,
+      billing_period_start,
+      billing_period_end,
+      period_start_date
+    `)
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.error('❌ [getBillingStatus] Error:', error);
+    throw new Error('Failed to fetch billing status');
+  }
+
+  const planType = profile?.plan_type || 'Free';
+  const wordsUsed = profile?.words_used || 0;
+  const wordsLimit = profile?.words_limit || 0;
+  const wordsRemaining = Math.max(0, wordsLimit - wordsUsed);
+
+  const currentPeriodStart = profile?.billing_period_start 
+    ? new Date(profile.billing_period_start)
+    : new Date();
+    
+  const currentPeriodEnd = profile?.billing_period_end 
+    ? new Date(profile.billing_period_end)
+    : getNextResetDate(planType, currentPeriodStart);
+
+  const daysRemaining = calculateDaysRemaining(currentPeriodEnd);
+  const nextResetDate = getNextResetDate(planType, currentPeriodStart);
+
+  return {
+    currentPeriodStart,
+    currentPeriodEnd,
+    daysRemaining,
+    planType,
+    wordsUsed,
+    wordsLimit,
+    wordsRemaining,
+    nextResetDate
+  };
 } 

@@ -11,7 +11,9 @@ import {
   getNextResetDate,
   validateWordCount,
   getWordLimitExceededMessage,
-  needsBillingReset
+  needsBillingReset,
+  calculateDaysRemaining,
+  getTransformationsLimit
 } from "@/lib/wordUtils";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -36,6 +38,12 @@ interface UsageData {
   resetDate?: string;
   billing_period_start?: string;
   billing_period_end?: string;
+  days_remaining?: number;
+  
+  // Legacy transformation data for backward compatibility
+  transformations_used?: number;
+  transformations_limit?: number;
+  transformations_remaining?: number;
 }
 
 // Function to get real-time subscription status from Stripe
@@ -275,7 +283,9 @@ export async function GET() {
         stripe_customer_id, 
         stripe_subscription_id,
         period_start_date,
-        last_reset_date
+        last_reset_date,
+        billing_period_start,
+        billing_period_end
       `)
       .eq("id", user.id)
       .single();
@@ -344,8 +354,15 @@ export async function GET() {
 
     // Calculate billing period dates
     const config = getPlanConfig(finalPlan);
-    const periodStart = profile?.period_start_date ? new Date(profile.period_start_date) : new Date();
-    const nextReset = getNextResetDate(finalPlan, periodStart);
+    const periodStart = profile?.billing_period_start 
+      ? new Date(profile.billing_period_start) 
+      : (profile?.period_start_date ? new Date(profile.period_start_date) : new Date());
+    
+    const periodEnd = profile?.billing_period_end 
+      ? new Date(profile.billing_period_end)
+      : getNextResetDate(finalPlan, periodStart);
+    
+    const daysRemaining = calculateDaysRemaining(periodEnd);
 
     const response: any = {
       success: true,
@@ -363,9 +380,15 @@ export async function GET() {
         plan: finalPlan,
         hasAccess,
         isAdmin: false,
-        resetDate: nextReset.toISOString(),
+        resetDate: periodEnd.toISOString(),
         billing_period_start: periodStart.toISOString(),
-        billing_period_end: nextReset.toISOString(),
+        billing_period_end: periodEnd.toISOString(),
+        days_remaining: daysRemaining,
+        
+        // Legacy transformation data for backward compatibility
+        transformations_used: transformationsUsed,
+        transformations_limit: getTransformationsLimit(finalPlan),
+        transformations_remaining: Math.max(0, getTransformationsLimit(finalPlan) - transformationsUsed)
       } as UsageData
     };
 

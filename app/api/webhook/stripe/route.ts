@@ -86,35 +86,75 @@ async function updateUserPlan(
   customerId: string,
   subscriptionStatus: string,
   subscriptionId?: string,
-  priceId?: string
+  priceId?: string,
+  eventType?: string,
+  billingReason?: string
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`🔗 [Webhook] 🔄 Updating user plan for customer: ${customerId}`);
   
   const { planType, wordsLimit, transformationsLimit } = getPlanDetailsFromSubscription(subscriptionStatus, priceId);
   
-  // Determine billing period start date
+  // 🚨 CRITICAL FIX: Only reset usage in specific cases
+  const isNewSubscription = eventType === 'customer.subscription.created' || eventType === 'checkout.session.completed';
+  const isBillingPeriodReset = eventType === 'invoice.payment_succeeded' && billingReason === 'subscription_cycle';
+  const isSubscriptionCancellation = eventType === 'customer.subscription.deleted';
+  
+  // Determine billing period dates
   const now = new Date();
   const billingPeriodStart = subscriptionStatus === 'active' ? now : null;
+  let billingPeriodEnd = null;
+  
+  if (subscriptionStatus === 'active' && subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      billingPeriodEnd = new Date(subscription.current_period_end * 1000);
+    } catch (error) {
+      console.error(`🔗 [Webhook] ⚠️ Could not fetch subscription period:`, error);
+      // Fallback to next month
+      billingPeriodEnd = new Date(now);
+      billingPeriodEnd.setMonth(billingPeriodEnd.getMonth() + 1);
+    }
+  }
   
   const updateData: any = {
     stripe_subscription_status: subscriptionStatus,
     stripe_subscription_id: subscriptionId || null,
     plan_type: planType,
     words_limit: wordsLimit,
-    words_used: 0, // Reset word usage on plan change
     transformations_limit: transformationsLimit,
-    transformations_used: 0, // Reset transformation usage on plan change
     has_access: subscriptionStatus === 'active',
     updated_at: new Date().toISOString(),
-    last_reset_date: new Date().toISOString(),
   };
 
   if (priceId) {
     updateData.price_id = priceId;
   }
 
+  // 🚨 CRITICAL: Add billing period tracking
   if (billingPeriodStart) {
-    updateData.period_start_date = billingPeriodStart.toISOString();
+    updateData.billing_period_start = billingPeriodStart.toISOString();
+  }
+  
+  if (billingPeriodEnd) {
+    updateData.billing_period_end = billingPeriodEnd.toISOString();
+  }
+
+  // 🚨 CRITICAL FIX: Only reset usage in these specific cases
+  if (isNewSubscription) {
+    updateData.words_used = 0;
+    updateData.transformations_used = 0;
+    updateData.last_reset_date = new Date().toISOString();
+    console.log(`📅 [BillingCycle] Resetting word usage for new subscription`);
+  } else if (isBillingPeriodReset) {
+    updateData.words_used = 0;
+    updateData.transformations_used = 0;
+    updateData.last_reset_date = new Date().toISOString();
+    console.log(`📅 [BillingCycle] Resetting word usage for new billing period`);
+  } else if (isSubscriptionCancellation) {
+    // On cancellation, user goes to Free plan but keeps current usage until daily reset
+    console.log(`🔄 [Cancellation] User cancelled - moving to Free plan, preserving usage until daily reset`);
+  } else {
+    console.log(`🔄 [PlanChange] Preserving current word usage during plan change`);
   }
 
   console.log(`🔗 [Webhook] 📝 Update data:`, {
@@ -123,7 +163,10 @@ async function updateUserPlan(
     wordsLimit,
     transformationsLimit,
     subscriptionStatus,
-    hasAccess: updateData.has_access
+    hasAccess: updateData.has_access,
+    resetUsage: !!(updateData.words_used === 0),
+    eventType,
+    billingReason
   });
 
   try {
@@ -143,6 +186,7 @@ async function updateUserPlan(
       userId: updatedProfile?.id,
       planType: updatedProfile?.plan_type,
       wordsLimit: updatedProfile?.words_limit,
+      wordsUsed: updatedProfile?.words_used,
       transformationsLimit: updatedProfile?.transformations_limit,
       status: updatedProfile?.stripe_subscription_status
     });
@@ -150,6 +194,42 @@ async function updateUserPlan(
     return { success: true };
   } catch (error) {
     console.error(`🔗 [Webhook] ❌ Update error:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Function to handle billing cycle reset
+async function handleBillingCycleReset(
+  supabase: SupabaseClient,
+  event: Stripe.Event
+): Promise<{ success: boolean; error?: string }> {
+  const stripeObject: Stripe.Invoice = event.data.object as Stripe.Invoice;
+  const customerId = stripeObject.customer as string;
+  const subscriptionId = stripeObject.subscription as string;
+  
+  console.log(`📅 [BillingCycle] Processing billing cycle reset for customer: ${customerId}`);
+  
+  try {
+    // Reset usage for billing cycle
+    const { error: resetError } = await supabase
+      .from("profiles")
+      .update({
+        words_used: 0,
+        transformations_used: 0,
+        last_reset_date: new Date().toISOString(),
+        billing_period_start: new Date().toISOString(),
+      })
+      .eq("stripe_customer_id", customerId);
+
+    if (resetError) {
+      console.error(`📅 [BillingCycle] ❌ Failed to reset usage:`, resetError);
+      return { success: false, error: resetError.message };
+    }
+
+    console.log(`📅 [BillingCycle] ✅ Successfully reset usage for new billing period`);
+    return { success: true };
+  } catch (error) {
+    console.error(`📅 [BillingCycle] ❌ Error:`, error);
     return { success: false, error: error.message };
   }
 }
@@ -273,8 +353,15 @@ export async function POST(req: NextRequest) {
           subscriptionStatus = subscription.status;
         }
 
-        // Update user plan
-        const result = await updateUserPlan(supabase, customerId as string, subscriptionStatus, subscriptionId, priceId);
+        // Update user plan (this is a new subscription)
+        const result = await updateUserPlan(
+          supabase, 
+          customerId as string, 
+          subscriptionStatus, 
+          subscriptionId, 
+          priceId, 
+          eventType
+        );
         if (!result.success) {
           return NextResponse.json({ error: result.error }, { status: 500 });
         }
@@ -291,7 +378,8 @@ export async function POST(req: NextRequest) {
           stripeObject.customer as string,
           stripeObject.status,
           stripeObject.id,
-          priceId
+          priceId,
+          eventType
         );
 
         if (!result.success) {
@@ -309,7 +397,8 @@ export async function POST(req: NextRequest) {
           stripeObject.customer as string,
           stripeObject.status,
           stripeObject.id,
-          priceId
+          priceId,
+          eventType
         );
 
         if (!result.success) {
@@ -324,7 +413,10 @@ export async function POST(req: NextRequest) {
         const result = await updateUserPlan(
           supabase,
           stripeObject.customer as string,
-          'canceled'
+          'canceled',
+          undefined,
+          undefined,
+          eventType
         );
 
         if (!result.success) {
@@ -333,10 +425,38 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      case "invoice.paid": {
+      case "invoice.payment_succeeded": {
         const stripeObject: Stripe.Invoice = event.data.object as Stripe.Invoice;
         const priceId = stripeObject.lines.data[0].price.id;
         const customerId = stripeObject.customer;
+        const billingReason = stripeObject.billing_reason;
+
+        console.log(`🔗 [Webhook] 💰 Invoice payment succeeded - billing reason: ${billingReason}`);
+
+        // Check if this is a billing cycle reset
+        if (billingReason === 'subscription_cycle') {
+          console.log(`📅 [BillingCycle] Detected subscription cycle - resetting usage`);
+          const resetResult = await handleBillingCycleReset(supabase, event);
+          
+          if (!resetResult.success) {
+            return NextResponse.json({ error: resetResult.error }, { status: 500 });
+          }
+        } else {
+          // For other billing reasons (like upgrades), just update plan without resetting usage
+          const result = await updateUserPlan(
+            supabase,
+            customerId as string,
+            'active',
+            stripeObject.subscription as string,
+            priceId,
+            eventType,
+            billingReason
+          );
+
+          if (!result.success) {
+            return NextResponse.json({ error: result.error }, { status: 500 });
+          }
+        }
 
         // Find profile to verify price match
         const { data: profile } = await supabase
@@ -347,20 +467,8 @@ export async function POST(req: NextRequest) {
 
         if (profile?.price_id !== priceId) {
           console.log(`🔗 [Webhook] ⚠️ Price mismatch - invoice ${priceId} vs profile ${profile?.price_id}`);
-          break;
         }
 
-        const result = await updateUserPlan(
-          supabase,
-          customerId as string,
-          'active',
-          stripeObject.subscription as string,
-          priceId
-        );
-
-        if (!result.success) {
-          return NextResponse.json({ error: result.error }, { status: 500 });
-        }
         break;
       }
 
@@ -371,7 +479,9 @@ export async function POST(req: NextRequest) {
           supabase,
           stripeObject.customer as string,
           'past_due',
-          stripeObject.subscription as string
+          stripeObject.subscription as string,
+          undefined,
+          eventType
         );
 
         if (result.success) {

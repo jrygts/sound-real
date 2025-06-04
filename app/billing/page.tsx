@@ -22,6 +22,12 @@ interface UsageData {
   resetDate?: string;
   billing_period_start?: string;
   billing_period_end?: string;
+  days_remaining?: number;
+  
+  // Legacy transformation data for backward compatibility
+  transformations_used?: number;
+  transformations_limit?: number;
+  transformations_remaining?: number;
 }
 
 export default function BillingPage() {
@@ -150,6 +156,48 @@ export default function BillingPage() {
 
   const isPaidPlan = usageInfo?.plan && ['Basic', 'Plus', 'Ultra'].includes(usageInfo.plan)
 
+  // Format date for display
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Format date with time for display
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Get billing period status
+  const getBillingPeriodStatus = () => {
+    if (!usageInfo) return null;
+    
+    if (usageInfo.plan === 'Free') {
+      return {
+        type: 'daily',
+        message: 'Daily transformations reset at midnight',
+        nextReset: 'Tomorrow at midnight'
+      };
+    }
+    
+    const daysRemaining = usageInfo.days_remaining || 0;
+    return {
+      type: 'monthly',
+      message: `Word usage resets monthly`,
+      nextReset: daysRemaining === 1 ? 'Tomorrow' : `In ${daysRemaining} days`
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -254,6 +302,37 @@ export default function BillingPage() {
                       <p className="text-sm text-slate-500">
                         {usageInfo.plan === 'Free' ? 'Daily reset' : 'Monthly reset'}: {new Date(usageInfo.resetDate).toLocaleDateString()}
                       </p>
+                      
+                      {/* 🚨 NEW: Billing Period Information */}
+                      {usageInfo.billing_period_start && usageInfo.billing_period_end && usageInfo.plan !== 'Free' && (
+                        <div className="mt-2 pt-2 border-t border-slate-100">
+                          <div className="text-xs text-slate-400 space-y-1">
+                            <div>Billing period: {formatDate(usageInfo.billing_period_start)} - {formatDate(usageInfo.billing_period_end)}</div>
+                            <div>
+                              {usageInfo.days_remaining !== undefined && (
+                                <span className="inline-flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {usageInfo.days_remaining === 0 ? 'Resets today' : 
+                                   usageInfo.days_remaining === 1 ? 'Resets tomorrow' :
+                                   `Resets in ${usageInfo.days_remaining} days`}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Free plan daily reset info */}
+                      {usageInfo.plan === 'Free' && (
+                        <div className="mt-2 pt-2 border-t border-slate-100">
+                          <div className="text-xs text-slate-400">
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Transformations reset daily at midnight
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
