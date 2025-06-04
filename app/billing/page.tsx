@@ -3,10 +3,21 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Crown, ExternalLink, ArrowLeft, CheckCircle, XCircle, Calendar, DollarSign } from 'lucide-react'
+import { CreditCard, Crown, ExternalLink, ArrowLeft, CheckCircle, XCircle, Calendar, DollarSign, BarChart3, Zap } from 'lucide-react'
+
+interface UsageData {
+  totalUsed: number;
+  limit: number;
+  remaining: number;
+  plan: string;
+  hasAccess: boolean;
+  isAdmin: boolean;
+  resetDate?: string;
+}
 
 export default function BillingPage() {
   const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null)
+  const [usageInfo, setUsageInfo] = useState<UsageData | null>(null)
   const [loading, setLoading] = useState(true)
   const [portalLoading, setPortalLoading] = useState(false)
   const supabase = createBrowserClient(
@@ -28,13 +39,23 @@ export default function BillingPage() {
     }
 
     try {
+      // Load subscription status
       const subscriptionResponse = await fetch('/api/subscription/status')
       if (subscriptionResponse.ok) {
         const subData = await subscriptionResponse.json()
         setSubscriptionInfo(subData)
       }
+
+      // Load usage information  
+      const usageResponse = await fetch('/api/subscription/usage')
+      if (usageResponse.ok) {
+        const usageData = await usageResponse.json()
+        if (usageData.success) {
+          setUsageInfo(usageData.usage)
+        }
+      }
     } catch (error) {
-      console.error('Failed to fetch subscription info:', error)
+      console.error('Failed to fetch billing info:', error)
     }
     
     setLoading(false)
@@ -65,6 +86,18 @@ export default function BillingPage() {
     setPortalLoading(false)
   }
 
+  const getUsagePercentage = () => {
+    if (!usageInfo || usageInfo.limit === -1) return 0
+    return Math.min((usageInfo.totalUsed / usageInfo.limit) * 100, 100)
+  }
+
+  const getUsageColor = () => {
+    const percentage = getUsagePercentage()
+    if (percentage >= 90) return 'text-red-600 bg-red-100'
+    if (percentage >= 70) return 'text-yellow-600 bg-yellow-100'
+    return 'text-green-600 bg-green-100'
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -88,6 +121,123 @@ export default function BillingPage() {
           <h1 className="text-3xl font-bold text-slate-900">Billing & Subscription</h1>
           <p className="text-slate-600 mt-2">Manage your subscription and billing information</p>
         </div>
+
+        {/* Usage Overview Card */}
+        {usageInfo && (
+          <div className="bg-white rounded-lg shadow-sm border mb-8">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Usage Overview
+                </h2>
+                <div className={`px-3 py-1 rounded-full text-sm font-medium ${getUsageColor()}`}>
+                  {usageInfo.isAdmin ? 'Unlimited' : `${usageInfo.totalUsed}/${usageInfo.limit === -1 ? '∞' : usageInfo.limit}`}
+                </div>
+              </div>
+
+              {usageInfo.isAdmin ? (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <Crown className="w-6 h-6 text-purple-600" />
+                    <div>
+                      <h3 className="font-medium text-purple-900">Admin Access</h3>
+                      <p className="text-sm text-purple-700">Unlimited transformations and all features</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Usage Bar */}
+                  <div>
+                    <div className="flex justify-between text-sm text-slate-600 mb-2">
+                      <span>Transformations Used</span>
+                      <span>{usageInfo.totalUsed} of {usageInfo.limit === -1 ? 'unlimited' : usageInfo.limit}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          getUsagePercentage() >= 90 ? 'bg-red-500' : 
+                          getUsagePercentage() >= 70 ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: `${usageInfo.limit === -1 ? 0 : getUsagePercentage()}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Usage Stats */}
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-slate-900">{usageInfo.totalUsed}</div>
+                      <div className="text-sm text-slate-600">Used</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {usageInfo.remaining === -1 ? '∞' : usageInfo.remaining}
+                      </div>
+                      <div className="text-sm text-slate-600">Remaining</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{usageInfo.plan}</div>
+                      <div className="text-sm text-slate-600">Plan</div>
+                    </div>
+                  </div>
+
+                  {/* Reset Date */}
+                  {usageInfo.resetDate && (
+                    <div className="text-center pt-2 border-t">
+                      <p className="text-sm text-slate-500">
+                        {usageInfo.plan === 'Free' ? 'Daily reset' : 'Monthly reset'}: {new Date(usageInfo.resetDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Low Usage Warning */}
+                  {usageInfo.remaining <= 5 && usageInfo.remaining > 0 && usageInfo.plan === 'Free' && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                      <div className="flex items-center gap-3">
+                        <Zap className="w-5 h-5 text-yellow-600" />
+                        <div>
+                          <h3 className="font-medium text-yellow-900">Running Low on Transformations</h3>
+                          <p className="text-sm text-yellow-700">
+                            You have {usageInfo.remaining} transformation{usageInfo.remaining !== 1 ? 's' : ''} left today. 
+                            <button 
+                              onClick={() => router.push('/pricing')}
+                              className="text-yellow-800 underline ml-1 hover:text-yellow-900"
+                            >
+                              Upgrade for unlimited access
+                            </button>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Usage Left */}
+                  {usageInfo.remaining <= 0 && usageInfo.plan === 'Free' && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+                      <div className="flex items-center gap-3">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                        <div>
+                          <h3 className="font-medium text-red-900">Daily Limit Reached</h3>
+                          <p className="text-sm text-red-700">
+                            You&apos;ve used all your free transformations for today.
+                            <button 
+                              onClick={() => router.push('/pricing')}
+                              className="text-red-800 underline ml-1 hover:text-red-900"
+                            >
+                              Upgrade for unlimited access
+                            </button>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Subscription Status Card */}
         <div className="bg-white rounded-lg shadow-sm border mb-8">

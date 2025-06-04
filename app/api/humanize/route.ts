@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { cookies } from "next/headers";
 import { cleanMarkdownForHumanization } from "@/libs/textProcessing";
+import { isUserAdmin } from "@/libs/admin";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -52,42 +53,32 @@ export async function POST(request: Request) {
       cookies().set("free_uses_today", (currentUses + 1).toString());
       cookies().set("last_reset_date", today);
     } else {
-      // Check subscription for logged-in users
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("stripe_subscription_status")
-        .eq("id", user.id)
-        .single();
-        
-      if (profile?.stripe_subscription_status !== "active") {
-        // Check free tier limits
-        const { data: usage } = await supabase
-          .from("usage_tracking")
-          .select("*")
-          .eq("user_id", user.id)
-          .single();
-          
-        const today = new Date().toDateString();
-        const lastReset = usage?.last_reset_date ? new Date(usage.last_reset_date).toDateString() : "";
-        
-        let todayUses = usage?.free_uses_today || 0;
-        if (lastReset !== today) {
-          todayUses = 0;
-          // Reset daily uses
-          await supabase
-            .from("usage_tracking")
-            .upsert({
-              user_id: user.id,
-              free_uses_today: 0,
-              last_reset_date: new Date().toISOString()
-            });
-        }
-        
-        if (todayUses >= FREE_DAILY_LIMIT) {
-          return NextResponse.json(
-            { error: "Daily limit reached. Upgrade to Pro for unlimited!" },
-            { status: 403 }
-          );
+      // Check if user is admin first - admins get unlimited access
+      const isAdmin = isUserAdmin({ email: user.email, id: user.id });
+      
+      if (!isAdmin) {
+        // Check usage limits through our new usage API
+        const usageResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/subscription/usage`, {
+          method: 'POST',
+          headers: {
+            'Cookie': request.headers.get('Cookie') || '',
+          },
+        });
+
+        if (!usageResponse.ok) {
+          const usageData = await usageResponse.json();
+          if (usageResponse.status === 429) {
+            // Usage limit reached
+            return NextResponse.json(
+              { 
+                error: usageData.error || "Usage limit reached. Upgrade your plan for more transformations!",
+                usage: usageData.usage 
+              },
+              { status: 429 }
+            );
+          }
+          // Other usage API errors - log but don't block (graceful degradation)
+          console.error('Usage API error:', usageData);
         }
       }
     }
@@ -142,13 +133,6 @@ Natural, human-sounding version:`;
         ai_score_before: aiScoreBefore,
         ai_score_after: aiScoreAfter,
         word_count: cleanedText.split(/\s+/).length,
-      });
-      
-      // Update usage
-      await supabase.rpc("increment", { 
-        table_name: "usage_tracking",
-        column_name: "free_uses_today",
-        user_id: user.id 
       });
     }
     
