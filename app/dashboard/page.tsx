@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import { FileText, Download, BarChart3, Copy } from 'lucide-react'
+import { FileText, Download, BarChart3, Copy, Crown } from 'lucide-react'
+import { isCurrentUserAdmin } from '@/libs/admin'
 
 export default function Dashboard() {
   const [transformations, setTransformations] = useState<any[]>([])
   const [stats, setStats] = useState({ today: 0, total: 0, saved: 0 })
+  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -23,8 +26,23 @@ export default function Dashboard() {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      router.push('/login')
+      router.push('/signin')
       return
+    }
+
+    // Check admin status
+    const adminStatus = await isCurrentUserAdmin()
+    setIsAdmin(adminStatus)
+
+    // Get subscription info
+    try {
+      const subscriptionResponse = await fetch('/api/subscription/status')
+      if (subscriptionResponse.ok) {
+        const subData = await subscriptionResponse.json()
+        setSubscriptionInfo(subData)
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription info:', error)
     }
 
     // Get transformations
@@ -69,7 +87,42 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+            {isAdmin && (
+              <div className="flex items-center gap-2 mt-2">
+                <Crown className="w-4 h-4 text-purple-600" />
+                <span className="text-sm bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-medium">
+                  Admin Access - Unlimited Usage
+                </span>
+              </div>
+            )}
+          </div>
+          
+          {/* Subscription Status */}
+          <div className="text-right">
+            {subscriptionInfo?.isAdmin ? (
+              <div className="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg">
+                <p className="font-medium">🔧 Admin Account</p>
+                <p className="text-sm">Unlimited access</p>
+              </div>
+            ) : subscriptionInfo?.hasActiveSubscription ? (
+              <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg">
+                <p className="font-medium">✨ Pro Member</p>
+                <p className="text-sm">Unlimited transformations</p>
+              </div>
+            ) : (
+              <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg">
+                <p className="font-medium">Free Trial</p>
+                <button 
+                  onClick={() => router.push('/pricing')}
+                  className="text-sm underline hover:no-underline"
+                >
+                  Upgrade to Pro →
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
@@ -106,13 +159,16 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Action */}
-        <div className="bg-blue-600 rounded-lg p-6 mb-8 text-center">
+        <div className={`rounded-lg p-6 mb-8 text-center ${
+          isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-blue-600'
+        }`}>
           <h2 className="text-2xl font-bold text-white mb-2">
-            Ready to transform more text?
+            {isAdmin ? '🔧 Admin Mode - Transform Unlimited Text' : 'Ready to transform more text?'}
           </h2>
           <button
             onClick={() => router.push('/')}
-            className="mt-4 px-6 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50"
+            className="mt-4 px-6 py-3 bg-white rounded-lg font-medium hover:bg-blue-50"
+            style={{ color: isAdmin ? '#7c3aed' : '#2563eb' }}
           >
             New Transformation
           </button>
@@ -127,7 +183,7 @@ export default function Dashboard() {
           </div>
           
           <div className="divide-y">
-            {transformations.map((t) => (
+            {transformations.length > 0 ? transformations.map((t) => (
               <div key={t.id} className="p-6 hover:bg-slate-50">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -175,7 +231,19 @@ export default function Dashboard() {
                   Copy humanized text
                 </button>
               </div>
-            ))}
+            )) : (
+              <div className="p-12 text-center">
+                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 mb-2">No transformations yet</h3>
+                <p className="text-slate-600 mb-4">Start transforming AI text to see your history here</p>
+                <button
+                  onClick={() => router.push('/')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create First Transformation
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

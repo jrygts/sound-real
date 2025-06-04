@@ -1,4 +1,5 @@
 import { createClient } from "@/libs/supabase/server";
+import { isUserAdmin } from "@/libs/admin";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -13,7 +14,21 @@ export async function GET() {
       );
     }
 
-    // Check subscription status from profiles table
+    // Check if user is admin first - admins get unlimited access
+    const isAdmin = isUserAdmin({ email: user.email, id: user.id });
+    
+    if (isAdmin) {
+      return NextResponse.json({
+        success: true,
+        hasActiveSubscription: true,
+        subscriptionStatus: "admin_bypass",
+        customerId: null,
+        isAdmin: true,
+        adminMessage: "🔧 Admin access - unlimited usage"
+      });
+    }
+
+    // Check subscription status from profiles table for regular users
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("stripe_subscription_status, stripe_customer_id")
@@ -25,7 +40,8 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         hasActiveSubscription: false,
-        subscriptionStatus: null
+        subscriptionStatus: null,
+        isAdmin: false
       });
     }
 
@@ -35,7 +51,8 @@ export async function GET() {
       success: true,
       hasActiveSubscription,
       subscriptionStatus: profile?.stripe_subscription_status || null,
-      customerId: profile?.stripe_customer_id || null
+      customerId: profile?.stripe_customer_id || null,
+      isAdmin: false
     });
 
   } catch (error) {
