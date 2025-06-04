@@ -5,6 +5,8 @@
  * for the Sound-Real word-based subscription system.
  */
 
+import { createClient } from "@/libs/supabase/server";
+
 // Word counting function - counts INPUT words only
 export function countWords(text: string): number {
   if (!text || typeof text !== 'string') {
@@ -70,6 +72,133 @@ export type PlanType = keyof typeof PLAN_CONFIGS;
 // Get plan configuration
 export function getPlanConfig(planType: string) {
   return PLAN_CONFIGS[planType as PlanType] || PLAN_CONFIGS.Free;
+}
+
+// Get user's current word usage and plan details
+export async function getUserWordUsage(userId: string): Promise<{
+  words_used: number;
+  words_limit: number;
+  words_remaining: number;
+  transformations_used: number;
+  transformations_limit: number;
+  plan_type: string;
+  has_access: boolean;
+}> {
+  const supabase = createClient();
+  
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select(`
+      plan_type, 
+      words_used, 
+      words_limit, 
+      transformations_used, 
+      transformations_limit
+    `)
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.error('❌ [getUserWordUsage] Error:', error);
+    throw new Error('Failed to fetch user usage data');
+  }
+
+  const wordsUsed = profile?.words_used || 0;
+  const wordsLimit = profile?.words_limit || 0;
+  const transformationsUsed = profile?.transformations_used || 0;
+  const transformationsLimit = profile?.transformations_limit || 5;
+  const planType = profile?.plan_type || 'Free';
+
+  const wordsRemaining = Math.max(0, wordsLimit - wordsUsed);
+  const transformationsRemaining = Math.max(0, transformationsLimit - transformationsUsed);
+
+  // Determine access based on plan type
+  let hasAccess = false;
+  if (planType === 'Free') {
+    hasAccess = transformationsRemaining > 0;
+  } else {
+    hasAccess = wordsRemaining > 0 || wordsLimit === -1; // -1 means unlimited
+  }
+
+  console.log(`📊 [getUserWordUsage] User ${userId}: ${wordsUsed}/${wordsLimit} words, ${transformationsUsed}/${transformationsLimit} transformations, Plan: ${planType}`);
+
+  return {
+    words_used: wordsUsed,
+    words_limit: wordsLimit,
+    words_remaining: wordsRemaining,
+    transformations_used: transformationsUsed,
+    transformations_limit: transformationsLimit,
+    plan_type: planType,
+    has_access: hasAccess
+  };
+}
+
+// Increment word usage for paid users
+export async function incrementWordUsage(userId: string, wordsUsed: number): Promise<void> {
+  const supabase = createClient();
+  
+  // First get current usage
+  const { data: currentProfile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('words_used')
+    .eq('id', userId)
+    .single();
+
+  if (fetchError) {
+    console.error('❌ [incrementWordUsage] Fetch error:', fetchError);
+    throw new Error('Failed to fetch current word usage');
+  }
+
+  const currentWordsUsed = currentProfile?.words_used || 0;
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({ 
+      words_used: currentWordsUsed + wordsUsed,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId);
+    
+  if (error) {
+    console.error('❌ [incrementWordUsage] Update error:', error);
+    throw new Error('Failed to update word usage');
+  }
+  
+  console.log(`📈 [incrementWordUsage] User ${userId}: Added ${wordsUsed} words (${currentWordsUsed} → ${currentWordsUsed + wordsUsed})`);
+}
+
+// Increment transformation usage for Free users
+export async function incrementTransformationUsage(userId: string): Promise<void> {
+  const supabase = createClient();
+  
+  // First get current usage
+  const { data: currentProfile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('transformations_used')
+    .eq('id', userId)
+    .single();
+
+  if (fetchError) {
+    console.error('❌ [incrementTransformationUsage] Fetch error:', fetchError);
+    throw new Error('Failed to fetch current transformation usage');
+  }
+
+  const currentTransformationsUsed = currentProfile?.transformations_used || 0;
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({ 
+      transformations_used: currentTransformationsUsed + 1,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId);
+    
+  if (error) {
+    console.error('❌ [incrementTransformationUsage] Update error:', error);
+    throw new Error('Failed to update transformation usage');
+  }
+  
+  console.log(`📈 [incrementTransformationUsage] User ${userId}: Incremented transformation usage (${currentTransformationsUsed} → ${currentTransformationsUsed + 1})`);
 }
 
 // Check if user can process text with word count

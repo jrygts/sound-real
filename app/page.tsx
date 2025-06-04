@@ -59,11 +59,30 @@ export default function Page() {
             const data = await response.json()
             
             if (!response.ok) {
+              // Handle specific error types
+              if (data.error === 'WORD_LIMIT_EXCEEDED') {
+                setError(`You need ${data.wordsNeeded} words but only have ${data.wordsRemaining} remaining. Please upgrade your plan or wait for your next billing period.`)
+                router.push('/billing')
+                return
+              }
+              
+              if (data.error === 'TRANSFORMATION_LIMIT_EXCEEDED') {
+                setError(data.message || 'Daily transformation limit reached. Please upgrade to a paid plan.')
+                router.push('/billing')
+                return
+              }
+              
               setError(data.error || 'Something went wrong')
               return
             }
             
             setResult(data)
+            
+            // Log usage update if available
+            if (data.usage) {
+              console.log('📊 Usage updated:', data.usage)
+            }
+            
           } else {
             // Authenticated but not subscribed - show preview + upgrade
             const previewResponse = await fetch('/api/humanize/preview', {
@@ -115,7 +134,7 @@ export default function Page() {
           router.push('/pricing?intent=transform')
         }
       } catch {
-        router.push('/pricing?intent=transform')
+        setError('Network error. Please check your connection and try again.')
       }
     } finally {
       setLoading(false)
