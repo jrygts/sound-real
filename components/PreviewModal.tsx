@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Zap, Clock, TrendingUp, Star, ArrowRight, Shield, Target } from 'lucide-react'
+import { X, Zap, Star, ArrowRight, Shield, Target } from 'lucide-react'
 
 interface PreviewModalProps {
   preview: string
@@ -141,7 +141,7 @@ const PreviewModal = ({
               <span className="text-sm text-slate-600 font-medium">4.9/5 from 2,847+ users</span>
             </div>
             <blockquote className="text-slate-700 italic">
-              "This tool saved me hours of manual editing. The AI detection bypass is incredible!" 
+              &ldquo;This tool saved me hours of manual editing. The AI detection bypass is incredible!&rdquo; 
             </blockquote>
             <cite className="text-sm text-slate-600 font-medium mt-1 block">
               — Sarah M., Content Manager
@@ -191,7 +191,7 @@ const PreviewModal = ({
                 <span className="font-medium">Limited Time: 30% Off Annual Plans</span>
               </div>
               <p className="text-blue-100 text-sm">
-                Join 2,847+ users who've transformed their content workflow
+                Join 2,847+ users who&apos;ve transformed their content workflow
               </p>
             </div>
           </div>

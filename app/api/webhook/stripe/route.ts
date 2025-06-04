@@ -11,6 +11,149 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+// WORD-BASED PLAN CONFIGURATION
+const PLAN_CONFIGS: Record<string, {
+  plan_type: string;
+  words_limit: number;
+  transformations_limit: number;
+  price: number;
+  name: string;
+}> = {
+  'price_1RWIGTR2giDQL8gT2b4fgQeD': {
+    plan_type: 'Basic',
+    words_limit: 5000,
+    transformations_limit: 200, // Keep for backward compatibility
+    price: 6.99,
+    name: 'Basic Plan'
+  },
+  'price_1RWIH9R2giDQL8gTtQ0SIOlM': {
+    plan_type: 'Plus',
+    words_limit: 15000,
+    transformations_limit: 600, // Keep for backward compatibility
+    price: 19.99,
+    name: 'Plus Plan'
+  },
+  'price_1RWIHvR2giDQL8gTI17qjZmD': {
+    plan_type: 'Ultra',
+    words_limit: 35000,
+    transformations_limit: 1200, // Keep for backward compatibility
+    price: 39.99,
+    name: 'Ultra Plan'
+  }
+};
+
+// Function to determine plan details based on subscription status and price ID
+function getPlanDetailsFromSubscription(subscriptionStatus: string, priceId?: string): {
+  planType: string;
+  wordsLimit: number;
+  transformationsLimit: number;
+} {
+  console.log(`🔗 [Webhook] Determining plan details for status: ${subscriptionStatus}, priceId: ${priceId}`);
+  
+  // If subscription is not active, user is on Free plan
+  if (!subscriptionStatus || subscriptionStatus !== 'active') {
+    console.log(`🔗 [Webhook] ➡️ Setting to Free plan (inactive subscription)`);
+    return {
+      planType: 'Free',
+      wordsLimit: 0, // Free users get 0 words per month
+      transformationsLimit: 5 // Keep 5 transformations per day for Free users
+    };
+  }
+  
+  // For active subscriptions, determine plan based on price ID
+  if (priceId && PLAN_CONFIGS[priceId]) {
+    const config = PLAN_CONFIGS[priceId];
+    console.log(`🔗 [Webhook] ➡️ Setting to ${config.plan_type} plan (${config.words_limit} words/month)`);
+    return {
+      planType: config.plan_type,
+      wordsLimit: config.words_limit,
+      transformationsLimit: config.transformations_limit
+    };
+  }
+  
+  // Default for active subscription with unknown price ID - treat as Basic
+  console.log(`🔗 [Webhook] ⚠️ Unknown price ID ${priceId}, defaulting to Basic plan`);
+  return {
+    planType: 'Basic',
+    wordsLimit: 5000,
+    transformationsLimit: 200
+  };
+}
+
+// Function to update user plan in database
+async function updateUserPlan(
+  supabase: SupabaseClient,
+  customerId: string,
+  subscriptionStatus: string,
+  subscriptionId?: string,
+  priceId?: string
+): Promise<{ success: boolean; error?: string }> {
+  console.log(`🔗 [Webhook] 🔄 Updating user plan for customer: ${customerId}`);
+  
+  const { planType, wordsLimit, transformationsLimit } = getPlanDetailsFromSubscription(subscriptionStatus, priceId);
+  
+  // Determine billing period start date
+  const now = new Date();
+  const billingPeriodStart = subscriptionStatus === 'active' ? now : null;
+  
+  const updateData: any = {
+    stripe_subscription_status: subscriptionStatus,
+    stripe_subscription_id: subscriptionId || null,
+    plan_type: planType,
+    words_limit: wordsLimit,
+    words_used: 0, // Reset word usage on plan change
+    transformations_limit: transformationsLimit,
+    transformations_used: 0, // Reset transformation usage on plan change
+    has_access: subscriptionStatus === 'active',
+    updated_at: new Date().toISOString(),
+    last_reset_date: new Date().toISOString(),
+  };
+
+  if (priceId) {
+    updateData.price_id = priceId;
+  }
+
+  if (billingPeriodStart) {
+    updateData.period_start_date = billingPeriodStart.toISOString();
+  }
+
+  console.log(`🔗 [Webhook] 📝 Update data:`, {
+    customerId,
+    planType,
+    wordsLimit,
+    transformationsLimit,
+    subscriptionStatus,
+    hasAccess: updateData.has_access
+  });
+
+  try {
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from("profiles")
+      .update(updateData)
+      .eq("stripe_customer_id", customerId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error(`🔗 [Webhook] ❌ Failed to update user plan:`, updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    console.log(`🔗 [Webhook] ✅ Successfully updated user plan:`, {
+      userId: updatedProfile?.id,
+      planType: updatedProfile?.plan_type,
+      wordsLimit: updatedProfile?.words_limit,
+      transformationsLimit: updatedProfile?.transformations_limit,
+      status: updatedProfile?.stripe_subscription_status
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(`🔗 [Webhook] ❌ Update error:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Enhanced webhook handler with comprehensive debugging
 export async function POST(req: NextRequest) {
   console.log(`🔗 [Webhook] Received webhook request`);
@@ -85,30 +228,18 @@ export async function POST(req: NextRequest) {
         const stripeObject: Stripe.Checkout.Session = event.data
           .object as Stripe.Checkout.Session;
 
-        console.log(`🔗 [Webhook] Raw checkout session:`, {
-          id: stripeObject.id,
-          mode: stripeObject.mode,
-          paymentStatus: stripeObject.payment_status,
-          customer: stripeObject.customer,
-          customerEmail: stripeObject.customer_details?.email,
-          clientReferenceId: stripeObject.client_reference_id
-        });
-
         const session = await findCheckoutSession(stripeObject.id);
-
         const customerId = session?.customer;
-        const customerEmail = stripeObject.customer_details?.email;
         const priceId = session?.line_items?.data[0]?.price.id;
         const userId = stripeObject.client_reference_id;
-        const plan = configFile.stripe.plans.find((p) => p.priceId === priceId);
+        const planConfig = priceId ? PLAN_CONFIGS[priceId] : null;
 
         console.log(`🔗 [Webhook] Extracted session details:`, {
           customerId,
-          customerEmail,
           priceId,
           userId,
-          planFound: !!plan,
-          planName: plan?.name
+          planFound: !!planConfig,
+          planName: planConfig?.name
         });
 
         if (!customerId) {
@@ -116,43 +247,15 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "No customer ID" }, { status: 400 });
         }
 
-        if (!plan) {
-          console.error(`🔗 [Webhook] ❌ No plan found for priceId: ${priceId}`);
-          return NextResponse.json({ error: "No plan found" }, { status: 400 });
-        }
+        const customer = (await stripe.customers.retrieve(customerId as string)) as Stripe.Customer;
 
-        const customer = (await stripe.customers.retrieve(
-          customerId as string
-        )) as Stripe.Customer;
-
-        console.log(`🔗 [Webhook] Stripe customer details:`, {
-          id: customer.id,
-          email: customer.email
-        });
-
-        // CRITICAL: Find the user by client_reference_id OR email
+        // Find user by client_reference_id OR email
         let targetUserId = userId;
-        
         if (!targetUserId && customer.email) {
-          console.log(`🔗 [Webhook] 🔍 No client_reference_id, looking up user by email: ${customer.email}`);
-          
-          try {
-            // Look up user by email in auth.users table
-            const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-            
-            if (authError) {
-              console.error(`🔗 [Webhook] ❌ Failed to list users:`, authError);
-            } else if (authUsers && authUsers.users) {
-              const foundUser = authUsers.users.find((u: any) => u.email === customer.email);
-              if (foundUser) {
-                targetUserId = foundUser.id;
-                console.log(`🔗 [Webhook] ✅ Found user by email: ${targetUserId}`);
-              } else {
-                console.error(`🔗 [Webhook] ❌ No user found with email: ${customer.email}`);
-              }
-            }
-          } catch (userLookupError) {
-            console.error(`🔗 [Webhook] ❌ User lookup failed:`, userLookupError);
+          const { data: authUsers } = await supabase.auth.admin.listUsers();
+          const foundUser = authUsers?.users?.find((u: any) => u.email === customer.email);
+          if (foundUser) {
+            targetUserId = foundUser.id;
           }
         }
 
@@ -161,316 +264,119 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "Cannot determine user ID" }, { status: 400 });
         }
 
-        console.log(`🔗 [Webhook] 🎯 Target user ID: ${targetUserId}`);
-
-        // Get subscription ID if this is a subscription
+        // Get subscription details
         let subscriptionId = null;
         let subscriptionStatus = 'active';
-        
         if (session?.mode === 'subscription' && session?.subscription) {
           subscriptionId = session.subscription as string;
-          
-          try {
-            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-            subscriptionStatus = subscription.status;
-            console.log(`🔗 [Webhook] Subscription details:`, {
-              id: subscriptionId,
-              status: subscriptionStatus,
-              customerId
-            });
-          } catch (subError) {
-            console.error(`🔗 [Webhook] ❌ Error fetching subscription:`, subError);
-          }
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          subscriptionStatus = subscription.status;
         }
 
-        // STEP 1: Check if profile exists
-        console.log(`🔗 [Webhook] 🔍 Checking if profile exists for user: ${targetUserId}`);
-        
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from("profiles")
-          .select("id, email, stripe_customer_id, stripe_subscription_status")
-          .eq("id", targetUserId)
-          .single();
-
-        console.log(`🔗 [Webhook] Profile check result:`, {
-          found: !!existingProfile,
-          error: profileCheckError?.message,
-          currentData: existingProfile
-        });
-
-        if (profileCheckError && profileCheckError.code !== 'PGRST116') {
-          console.error(`🔗 [Webhook] ❌ Profile check failed:`, profileCheckError);
-          return NextResponse.json({ error: "Profile check failed" }, { status: 500 });
+        // Update user plan
+        const result = await updateUserPlan(supabase, customerId as string, subscriptionStatus, subscriptionId, priceId);
+        if (!result.success) {
+          return NextResponse.json({ error: result.error }, { status: 500 });
         }
 
-        // STEP 2: Prepare update data
-        const updateData = {
-          stripe_customer_id: customerId,
-          price_id: priceId,
-          has_access: true,
-          stripe_subscription_status: subscriptionStatus,
-          stripe_subscription_id: subscriptionId,
-          updated_at: new Date().toISOString(),
-        };
-
-        console.log(`🔗 [Webhook] 📝 Preparing to update user ${targetUserId} with:`, updateData);
-
-        // STEP 3: Update or create profile
-        if (!existingProfile) {
-          console.log(`🔗 [Webhook] 🆕 Creating new profile for user ${targetUserId}`);
-          
-          const insertData = {
-            id: targetUserId,
-            email: customer.email,
-            ...updateData,
-            created_at: new Date().toISOString(),
-          };
-
-          console.log(`🔗 [Webhook] Insert data:`, insertData);
-
-          const { data: newProfile, error: createError } = await supabase
-            .from("profiles")
-            .insert(insertData)
-            .select()
-            .single();
-
-          console.log(`🔗 [Webhook] Insert result:`, {
-            success: !!newProfile,
-            error: createError?.message,
-            data: newProfile
-          });
-
-          if (createError) {
-            console.error(`🔗 [Webhook] ❌ Failed to create profile:`, createError);
-            console.error(`🔗 [Webhook] ❌ Full create error:`, JSON.stringify(createError, null, 2));
-            return NextResponse.json({ error: "Failed to create profile" }, { status: 500 });
-          } else {
-            console.log(`🔗 [Webhook] ✅ Successfully created profile for user ${targetUserId}`);
-          }
-        } else {
-          console.log(`🔗 [Webhook] 🔄 Updating existing profile for user ${targetUserId}`);
-          console.log(`🔗 [Webhook] Current profile data:`, existingProfile);
-          console.log(`🔗 [Webhook] Update data:`, updateData);
-
-          const { data: updatedProfile, error: updateError } = await supabase
-            .from("profiles")
-            .update(updateData)
-            .eq("id", targetUserId)
-            .select()
-            .single();
-
-          console.log(`🔗 [Webhook] Update result:`, {
-            success: !!updatedProfile,
-            error: updateError?.message,
-            data: updatedProfile
-          });
-
-          if (updateError) {
-            console.error(`🔗 [Webhook] ❌ Failed to update profile:`, updateError);
-            console.error(`🔗 [Webhook] ❌ Full update error:`, JSON.stringify(updateError, null, 2));
-            return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
-          } else {
-            console.log(`🔗 [Webhook] ✅ Successfully updated profile for user ${targetUserId}`);
-          }
-        }
-
-        // STEP 4: Verify the update worked
-        console.log(`🔗 [Webhook] 🔍 Verifying database update...`);
-        
-        const { data: verificationData, error: verificationError } = await supabase
-          .from("profiles")
-          .select("id, stripe_customer_id, stripe_subscription_status, has_access, updated_at")
-          .eq("id", targetUserId)
-          .single();
-
-        console.log(`🔗 [Webhook] Verification result:`, {
-          success: !!verificationData,
-          error: verificationError?.message,
-          finalData: verificationData
-        });
-
-        if (verificationData) {
-          console.log(`🔗 [Webhook] 🎉 DATABASE UPDATE CONFIRMED!`, {
-            userId: targetUserId,
-            customerId: verificationData.stripe_customer_id,
-            status: verificationData.stripe_subscription_status,
-            hasAccess: verificationData.has_access
-          });
-        }
-
-        break;
-      }
-
-      case "checkout.session.expired": {
-        console.log(`🔗 [Webhook] ⏰ Checkout session expired`);
         break;
       }
 
       case "customer.subscription.created": {
         const stripeObject: Stripe.Subscription = event.data.object as Stripe.Subscription;
+        const priceId = stripeObject.items.data[0]?.price.id;
         
-        console.log(`🔗 [Webhook] 🆕 Subscription created:`, {
-          id: stripeObject.id,
-          customer: stripeObject.customer,
-          status: stripeObject.status
-        });
+        const result = await updateUserPlan(
+          supabase,
+          stripeObject.customer as string,
+          stripeObject.status,
+          stripeObject.id,
+          priceId
+        );
 
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from("profiles")
-          .update({
-            stripe_subscription_id: stripeObject.id,
-            stripe_subscription_status: stripeObject.status,
-            has_access: stripeObject.status === 'active',
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_customer_id", stripeObject.customer)
-          .select()
-          .single();
-
-        console.log(`🔗 [Webhook] Subscription create update result:`, {
-          success: !!updatedProfile,
-          error: updateError?.message,
-          data: updatedProfile
-        });
-
-        if (updateError) {
-          console.error(`🔗 [Webhook] ❌ Failed to update subscription created:`, updateError);
-        } else {
-          console.log(`🔗 [Webhook] ✅ Subscription created and synced`);
+        if (!result.success) {
+          return NextResponse.json({ error: result.error }, { status: 500 });
         }
         break;
       }
 
       case "customer.subscription.updated": {
         const stripeObject: Stripe.Subscription = event.data.object as Stripe.Subscription;
+        const priceId = stripeObject.items.data[0]?.price.id;
         
-        console.log(`🔗 [Webhook] 🔄 Subscription updated:`, {
-          id: stripeObject.id,
-          customer: stripeObject.customer,
-          status: stripeObject.status
-        });
+        const result = await updateUserPlan(
+          supabase,
+          stripeObject.customer as string,
+          stripeObject.status,
+          stripeObject.id,
+          priceId
+        );
 
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from("profiles")
-          .update({
-            stripe_subscription_status: stripeObject.status,
-            has_access: stripeObject.status === 'active',
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_customer_id", stripeObject.customer)
-          .select()
-          .single();
-
-        console.log(`🔗 [Webhook] Subscription update result:`, {
-          success: !!updatedProfile,
-          error: updateError?.message,
-          data: updatedProfile
-        });
-
-        if (updateError) {
-          console.error(`🔗 [Webhook] ❌ Failed to update subscription:`, updateError);
-        } else {
-          console.log(`🔗 [Webhook] ✅ Subscription status updated to ${stripeObject.status}`);
+        if (!result.success) {
+          return NextResponse.json({ error: result.error }, { status: 500 });
         }
         break;
       }
 
       case "customer.subscription.deleted": {
-        const stripeObject: Stripe.Subscription = event.data
-          .object as Stripe.Subscription;
+        const stripeObject: Stripe.Subscription = event.data.object as Stripe.Subscription;
 
-        console.log(`🔗 [Webhook] 🗑️ Subscription deleted:`, {
-          id: stripeObject.id,
-          customer: stripeObject.customer
-        });
+        const result = await updateUserPlan(
+          supabase,
+          stripeObject.customer as string,
+          'canceled'
+        );
 
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from("profiles")
-          .update({ 
-            has_access: false,
-            stripe_subscription_status: 'canceled',
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_customer_id", stripeObject.customer)
-          .select()
-          .single();
-
-        console.log(`🔗 [Webhook] Subscription delete result:`, {
-          success: !!updatedProfile,
-          error: updateError?.message,
-          data: updatedProfile
-        });
-
-        if (updateError) {
-          console.error(`🔗 [Webhook] ❌ Failed to revoke access:`, updateError);
-        } else {
-          console.log(`🔗 [Webhook] ✅ Access revoked for canceled subscription`);
+        if (!result.success) {
+          return NextResponse.json({ error: result.error }, { status: 500 });
         }
         break;
       }
 
       case "invoice.paid": {
-        const stripeObject: Stripe.Invoice = event.data
-          .object as Stripe.Invoice;
+        const stripeObject: Stripe.Invoice = event.data.object as Stripe.Invoice;
         const priceId = stripeObject.lines.data[0].price.id;
         const customerId = stripeObject.customer;
 
-        console.log(`🔗 [Webhook] 💰 Invoice paid:`, {
-          customer: customerId,
-          priceId,
-          subscriptionId: stripeObject.subscription
-        });
-
-        // Find profile where stripe_customer_id equals the customerId
+        // Find profile to verify price match
         const { data: profile } = await supabase
           .from("profiles")
-          .select("*")
+          .select("price_id")
           .eq("stripe_customer_id", customerId)
           .single();
 
-        // Make sure the invoice is for the same plan (priceId) the user subscribed to
         if (profile?.price_id !== priceId) {
           console.log(`🔗 [Webhook] ⚠️ Price mismatch - invoice ${priceId} vs profile ${profile?.price_id}`);
           break;
         }
 
-        // Grant the profile access to your product
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from("profiles")
-          .update({ 
-            has_access: true,
-            stripe_subscription_status: 'active',
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_customer_id", customerId)
-          .select()
-          .single();
+        const result = await updateUserPlan(
+          supabase,
+          customerId as string,
+          'active',
+          stripeObject.subscription as string,
+          priceId
+        );
 
-        console.log(`🔗 [Webhook] Invoice payment update result:`, {
-          success: !!updatedProfile,
-          error: updateError?.message,
-          data: updatedProfile
-        });
-
-        if (updateError) {
-          console.error(`🔗 [Webhook] ❌ Failed to grant access for invoice:`, updateError);
-        } else {
-          console.log(`🔗 [Webhook] ✅ Access granted for invoice payment`);
+        if (!result.success) {
+          return NextResponse.json({ error: result.error }, { status: 500 });
         }
-
         break;
       }
 
       case "invoice.payment_failed": {
         const stripeObject: Stripe.Invoice = event.data.object as Stripe.Invoice;
         
-        console.log(`🔗 [Webhook] ❌ Invoice payment failed:`, {
-          customer: stripeObject.customer,
-          subscriptionId: stripeObject.subscription
-        });
+        const result = await updateUserPlan(
+          supabase,
+          stripeObject.customer as string,
+          'past_due',
+          stripeObject.subscription as string
+        );
 
-        // Don't immediately revoke access - let Stripe handle retries
-        // Access will be revoked when subscription is finally canceled
+        if (result.success) {
+          console.log(`🔗 [Webhook] ✅ Updated subscription to past_due status`);
+        }
         break;
       }
 
@@ -479,7 +385,6 @@ export async function POST(req: NextRequest) {
     }
   } catch (e) {
     console.error(`🔗 [Webhook] ❌ Processing error:`, e.message);
-    console.error(`🔗 [Webhook] ❌ Full error:`, e);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 

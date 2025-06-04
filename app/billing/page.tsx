@@ -3,16 +3,25 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Crown, ExternalLink, ArrowLeft, CheckCircle, XCircle, Calendar, DollarSign, BarChart3, Zap } from 'lucide-react'
+import { CreditCard, Crown, ExternalLink, ArrowLeft, CheckCircle, XCircle, Calendar, DollarSign, BarChart3, Zap, FileText } from 'lucide-react'
 
 interface UsageData {
+  // Word-based usage (primary for paid plans)
+  words_used: number;
+  words_limit: number;
+  words_remaining: number;
+  
+  // Legacy transformation-based usage (for Free users)
   totalUsed: number;
   limit: number;
   remaining: number;
+  
   plan: string;
   hasAccess: boolean;
   isAdmin: boolean;
   resetDate?: string;
+  billing_period_start?: string;
+  billing_period_end?: string;
 }
 
 export default function BillingPage() {
@@ -86,9 +95,29 @@ export default function BillingPage() {
     setPortalLoading(false)
   }
 
+  // Get plan configuration
+  const getPlanConfig = (planType: string) => {
+    const configs = {
+      'Free': { name: 'Free Plan', price: 0, color: 'slate', limit: '5 daily transformations' },
+      'Basic': { name: 'Basic Plan', price: 6.99, color: 'blue', limit: '5,000 words/month' },
+      'Plus': { name: 'Plus Plan', price: 19.99, color: 'green', limit: '15,000 words/month' },
+      'Ultra': { name: 'Ultra Plan', price: 39.99, color: 'purple', limit: '35,000 words/month' }
+    }
+    return configs[planType as keyof typeof configs] || configs['Free']
+  }
+
+  // Calculate usage percentage (words for paid, transformations for free)
   const getUsagePercentage = () => {
-    if (!usageInfo || usageInfo.limit === -1) return 0
-    return Math.min((usageInfo.totalUsed / usageInfo.limit) * 100, 100)
+    if (!usageInfo || usageInfo.isAdmin) return 0
+    
+    if (usageInfo.plan === 'Free') {
+      if (usageInfo.limit === -1) return 0
+      return Math.min((usageInfo.totalUsed / usageInfo.limit) * 100, 100)
+    } else {
+      // Paid plans use word-based usage
+      if (usageInfo.words_limit === 0) return 0
+      return Math.min((usageInfo.words_used / usageInfo.words_limit) * 100, 100)
+    }
   }
 
   const getUsageColor = () => {
@@ -97,6 +126,29 @@ export default function BillingPage() {
     if (percentage >= 70) return 'text-yellow-600 bg-yellow-100'
     return 'text-green-600 bg-green-100'
   }
+
+  const getProgressBarColor = () => {
+    const percentage = getUsagePercentage()
+    if (percentage >= 90) return 'bg-red-500'
+    if (percentage >= 70) return 'bg-yellow-500'
+    return 'bg-green-500'
+  }
+
+  // Format usage display
+  const formatUsageDisplay = () => {
+    if (!usageInfo) return ''
+    
+    if (usageInfo.isAdmin) return 'Unlimited'
+    
+    if (usageInfo.plan === 'Free') {
+      return `${usageInfo.totalUsed}/5 daily`
+    } else {
+      // Paid plans show word usage
+      return `${usageInfo.words_used.toLocaleString()}/${usageInfo.words_limit.toLocaleString()} words`
+    }
+  }
+
+  const isPaidPlan = usageInfo?.plan && ['Basic', 'Plus', 'Ultra'].includes(usageInfo.plan)
 
   if (loading) {
     return (
@@ -132,9 +184,7 @@ export default function BillingPage() {
                   Usage Overview
                 </h2>
                 <div className={`px-3 py-1 rounded-full text-sm font-medium ${getUsageColor()}`}>
-                  {usageInfo.isAdmin ? 'Unlimited' : 
-                   usageInfo.plan === 'Free' ? `${usageInfo.totalUsed}/5 daily` :
-                   usageInfo.limit === -1 ? 'Unlimited' : `${usageInfo.totalUsed}/${usageInfo.limit}`}
+                  {formatUsageDisplay()}
                 </div>
               </div>
 
@@ -144,7 +194,7 @@ export default function BillingPage() {
                     <Crown className="w-6 h-6 text-purple-600" />
                     <div>
                       <h3 className="font-medium text-purple-900">Admin Access</h3>
-                      <p className="text-sm text-purple-700">Unlimited transformations and all features</p>
+                      <p className="text-sm text-purple-700">Unlimited words and transformations</p>
                     </div>
                   </div>
                 </div>
@@ -153,22 +203,20 @@ export default function BillingPage() {
                   {/* Usage Bar */}
                   <div>
                     <div className="flex justify-between text-sm text-slate-600 mb-2">
-                      <span>Transformations Used</span>
                       <span>
-                        {usageInfo.totalUsed} of {
-                          usageInfo.plan === 'Free' ? '5 daily' :
-                          usageInfo.limit === -1 ? 'unlimited' : 
-                          `${usageInfo.limit} monthly`
+                        {usageInfo.plan === 'Free' ? 'Transformations Used' : 'Words Used'}
+                      </span>
+                      <span>
+                        {usageInfo.plan === 'Free' ? 
+                          `${usageInfo.totalUsed} of 5 daily` :
+                          `${usageInfo.words_used.toLocaleString()} of ${usageInfo.words_limit.toLocaleString()} monthly`
                         }
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2">
                       <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          getUsagePercentage() >= 90 ? 'bg-red-500' : 
-                          getUsagePercentage() >= 70 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                        style={{ width: `${usageInfo.limit === -1 ? 0 : getUsagePercentage()}%` }}
+                        className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor()}`}
+                        style={{ width: `${getUsagePercentage()}%` }}
                       ></div>
                     </div>
                   </div>
@@ -176,14 +224,23 @@ export default function BillingPage() {
                   {/* Usage Stats */}
                   <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-slate-900">{usageInfo.totalUsed}</div>
-                      <div className="text-sm text-slate-600">Used</div>
+                      <div className="text-2xl font-bold text-slate-900">
+                        {usageInfo.plan === 'Free' ? usageInfo.totalUsed : usageInfo.words_used.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        {usageInfo.plan === 'Free' ? 'Used' : 'Words Used'}
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {usageInfo.remaining === -1 ? '∞' : usageInfo.remaining}
+                        {usageInfo.plan === 'Free' ? 
+                          usageInfo.remaining :
+                          usageInfo.words_remaining.toLocaleString()
+                        }
                       </div>
-                      <div className="text-sm text-slate-600">Remaining</div>
+                      <div className="text-sm text-slate-600">
+                        {usageInfo.plan === 'Free' ? 'Remaining' : 'Words Left'}
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-600">{usageInfo.plan}</div>
@@ -200,57 +257,108 @@ export default function BillingPage() {
                     </div>
                   )}
 
-                  {/* Low Usage Warning for Free Users */}
-                  {usageInfo.remaining <= 2 && usageInfo.remaining > 0 && usageInfo.plan === 'Free' && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                      <div className="flex items-center gap-3">
-                        <Zap className="w-5 h-5 text-yellow-600" />
-                        <div>
-                          <h3 className="font-medium text-yellow-900">Running Low on Transformations</h3>
-                          <p className="text-sm text-yellow-700">
-                            You have {usageInfo.remaining} transformation{usageInfo.remaining !== 1 ? 's' : ''} left today. 
-                            <button 
-                              onClick={() => router.push('/pricing')}
-                              className="text-yellow-800 underline ml-1 hover:text-yellow-900"
-                            >
-                              Upgrade for unlimited access
-                            </button>
-                          </p>
+                  {/* Free User Warnings */}
+                  {usageInfo.plan === 'Free' && (
+                    <>
+                      {/* Low Usage Warning */}
+                      {usageInfo.remaining <= 2 && usageInfo.remaining > 0 && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                          <div className="flex items-center gap-3">
+                            <Zap className="w-5 h-5 text-yellow-600" />
+                            <div>
+                              <h3 className="font-medium text-yellow-900">Running Low on Transformations</h3>
+                              <p className="text-sm text-yellow-700">
+                                You have {usageInfo.remaining} transformation{usageInfo.remaining !== 1 ? 's' : ''} left today. 
+                                <button 
+                                  onClick={() => router.push('/pricing')}
+                                  className="text-yellow-800 underline ml-1 hover:text-yellow-900"
+                                >
+                                  Upgrade to get word-based billing
+                                </button>
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      )}
+
+                      {/* No Usage Left */}
+                      {usageInfo.remaining <= 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+                          <div className="flex items-center gap-3">
+                            <XCircle className="w-5 h-5 text-red-600" />
+                            <div>
+                              <h3 className="font-medium text-red-900">Daily Limit Reached</h3>
+                              <p className="text-sm text-red-700">
+                                You&apos;ve used all your free transformations for today. Your limit resets tomorrow at midnight.
+                                <button 
+                                  onClick={() => router.push('/pricing')}
+                                  className="text-red-800 underline ml-1 hover:text-red-900"
+                                >
+                                  Upgrade for word-based billing
+                                </button>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
-                  {/* No Usage Left for Free Users */}
-                  {usageInfo.remaining <= 0 && usageInfo.plan === 'Free' && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
-                      <div className="flex items-center gap-3">
-                        <XCircle className="w-5 h-5 text-red-600" />
-                        <div>
-                          <h3 className="font-medium text-red-900">Daily Limit Reached</h3>
-                          <p className="text-sm text-red-700">
-                            You&apos;ve used all your free transformations for today. Your limit resets tomorrow at midnight.
-                            <button 
-                              onClick={() => router.push('/pricing')}
-                              className="text-red-800 underline ml-1 hover:text-red-900"
-                            >
-                              Upgrade for unlimited access
-                            </button>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Pro User Success Message */}
-                  {usageInfo.plan === 'Pro' && usageInfo.limit === -1 && (
+                  {/* Paid User Success Message */}
+                  {isPaidPlan && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
                       <div className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                         <div>
-                          <h3 className="font-medium text-green-900">Unlimited Transformations</h3>
+                          <h3 className="font-medium text-green-900">
+                            {getPlanConfig(usageInfo.plan).name} Active
+                          </h3>
                           <p className="text-sm text-green-700">
-                            You have unlimited transformations as a Pro subscriber. Transform as much as you need!
+                            You have {usageInfo.words_remaining.toLocaleString()} words remaining this month. 
+                            Word-based billing for precise usage tracking.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Word Usage Warning for Paid Users */}
+                  {isPaidPlan && usageInfo.words_remaining <= 1000 && usageInfo.words_remaining > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-yellow-600" />
+                        <div>
+                          <h3 className="font-medium text-yellow-900">Running Low on Words</h3>
+                          <p className="text-sm text-yellow-700">
+                            You have {usageInfo.words_remaining.toLocaleString()} words remaining this month.
+                            <button 
+                              onClick={() => router.push('/pricing')}
+                              className="text-yellow-800 underline ml-1 hover:text-yellow-900"
+                            >
+                              Upgrade to a higher plan
+                            </button>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Word Limit Exceeded for Paid Users */}
+                  {isPaidPlan && usageInfo.words_remaining <= 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+                      <div className="flex items-center gap-3">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                        <div>
+                          <h3 className="font-medium text-red-900">Word Limit Reached</h3>
+                          <p className="text-sm text-red-700">
+                            You&apos;ve used all {usageInfo.words_limit.toLocaleString()} words for this month. 
+                            Your limit resets on {new Date(usageInfo.resetDate!).toLocaleDateString()}.
+                            <button 
+                              onClick={() => router.push('/pricing')}
+                              className="text-red-800 underline ml-1 hover:text-red-900"
+                            >
+                              Upgrade for more words
+                            </button>
                           </p>
                         </div>
                       </div>
@@ -262,7 +370,7 @@ export default function BillingPage() {
           </div>
         )}
 
-        {/* Subscription Status Card */}
+        {/* Current Plan Card */}
         <div className="bg-white rounded-lg shadow-sm border mb-8">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
@@ -272,10 +380,10 @@ export default function BillingPage() {
                   <Crown className="w-4 h-4" />
                   <span className="text-sm font-medium">Admin</span>
                 </div>
-              ) : subscriptionInfo?.hasActiveSubscription ? (
+              ) : usageInfo && isPaidPlan ? (
                 <div className="flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full">
                   <CheckCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">Pro</span>
+                  <span className="text-sm font-medium">{usageInfo.plan}</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 bg-slate-100 text-slate-800 px-3 py-1 rounded-full">
@@ -294,14 +402,18 @@ export default function BillingPage() {
                   </div>
                 </div>
               </div>
-            ) : subscriptionInfo?.hasActiveSubscription ? (
+            ) : usageInfo && isPaidPlan ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <CheckCircle className="w-6 h-6 text-green-600" />
                     <div>
-                      <h3 className="font-medium text-green-900">Pro Subscription Active</h3>
-                      <p className="text-sm text-green-700">Unlimited transformations and priority support</p>
+                      <h3 className="font-medium text-green-900">
+                        {getPlanConfig(usageInfo.plan).name} - ${getPlanConfig(usageInfo.plan).price}/month
+                      </h3>
+                      <p className="text-sm text-green-700">
+                        {getPlanConfig(usageInfo.plan).limit} • Word-based billing
+                      </p>
                       {subscriptionInfo?.subscriptionStatus && (
                         <p className="text-xs text-green-600 mt-1">
                           Status: {subscriptionInfo.subscriptionStatus}
@@ -334,8 +446,8 @@ export default function BillingPage() {
                     </div>
                     <div>
                       <h3 className="font-medium text-blue-900">Free Plan</h3>
-                      <p className="text-sm text-blue-700">Limited transformations per day</p>
-                      <p className="text-xs text-blue-600 mt-1">Upgrade to unlock unlimited usage</p>
+                      <p className="text-sm text-blue-700">5 transformations per day</p>
+                      <p className="text-xs text-blue-600 mt-1">Upgrade to get word-based billing</p>
                     </div>
                   </div>
                   <button
@@ -343,7 +455,7 @@ export default function BillingPage() {
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     <Crown className="w-4 h-4" />
-                    Upgrade to Pro
+                    Upgrade Plan
                   </button>
                 </div>
               </div>
@@ -356,40 +468,35 @@ export default function BillingPage() {
           <div className="p-6">
             <h2 className="text-xl font-semibold text-slate-900 mb-6">Plan Features</h2>
             
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Free Plan */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium text-slate-900 mb-3">Free Plan</h3>
+                <div className="text-sm text-slate-600 mb-3">$0/month</div>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>5 transformations per day</span>
+                    <span>5 transformations/day</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>Standard AI detection bypass</span>
+                    <span>Basic AI detection bypass</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <XCircle className="w-4 h-4 text-red-500" />
-                    <span>No priority support</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500" />
-                    <span>No advanced features</span>
+                    <span>No word-based billing</span>
                   </li>
                 </ul>
               </div>
 
-              {/* Pro Plan */}
-              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="font-medium text-slate-900">Pro Plan</h3>
-                  <Crown className="w-4 h-4 text-blue-600" />
-                </div>
+              {/* Basic Plan */}
+              <div className="border rounded-lg p-4 bg-blue-50">
+                <h3 className="font-medium text-slate-900 mb-3">Basic Plan</h3>
+                <div className="text-sm text-slate-600 mb-3">$6.99/month</div>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span><strong>Unlimited</strong> transformations</span>
+                    <span><strong>5,000 words/month</strong></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
@@ -397,11 +504,50 @@ export default function BillingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>Priority customer support</span>
+                    <span>Priority processing</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Plus Plan */}
+              <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="font-medium text-slate-900">Plus Plan</h3>
+                  <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">Popular</span>
+                </div>
+                <div className="text-sm text-slate-600 mb-3">$19.99/month</div>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span><strong>15,000 words/month</strong></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>Access to new features first</span>
+                    <span>Premium AI humanization</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Priority support</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Ultra Plan */}
+              <div className="border rounded-lg p-4 bg-purple-50">
+                <h3 className="font-medium text-slate-900 mb-3">Ultra Plan</h3>
+                <div className="text-sm text-slate-600 mb-3">$39.99/month</div>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span><strong>35,000 words/month</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Maximum AI bypass quality</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>24/7 priority support</span>
                   </li>
                 </ul>
               </div>
@@ -463,7 +609,7 @@ export default function BillingPage() {
             <div className="p-6">
               <h2 className="text-xl font-semibold text-slate-900 mb-4">Need Help?</h2>
               <p className="text-slate-600 mb-4">
-                Have questions about our Pro plan? We&apos;re here to help!
+                Have questions about our word-based billing plans? We&apos;re here to help!
               </p>
               <div className="flex gap-4">
                 <button

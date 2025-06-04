@@ -8,9 +8,17 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
+      return new NextResponse(
+        JSON.stringify({ error: 'Not authenticated' }),
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
       );
     }
 
@@ -18,14 +26,26 @@ export async function GET() {
     const isAdmin = isUserAdmin({ email: user.email, id: user.id });
     
     if (isAdmin) {
-      return NextResponse.json({
-        success: true,
-        hasActiveSubscription: true,
-        subscriptionStatus: "admin_bypass",
-        customerId: null,
-        isAdmin: true,
-        adminMessage: "🔧 Admin access - unlimited usage"
-      });
+      return new NextResponse(
+        JSON.stringify({
+          success: true,
+          hasActiveSubscription: true,
+          subscriptionStatus: "admin_bypass",
+          customerId: null,
+          isAdmin: true,
+          adminMessage: "🔧 Admin access - unlimited usage"
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'X-Timestamp': new Date().toISOString()
+          }
+        }
+      );
     }
 
     // Check subscription status from profiles table for regular users
@@ -37,29 +57,61 @@ export async function GET() {
 
     if (profileError) {
       console.error('Profile fetch error:', profileError);
-      return NextResponse.json({
-        success: true,
-        hasActiveSubscription: false,
-        subscriptionStatus: null,
-        isAdmin: false
-      });
+      return new NextResponse(
+        JSON.stringify({
+          success: true,
+          hasActiveSubscription: false,
+          subscriptionStatus: null,
+          isAdmin: false
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'X-Timestamp': new Date().toISOString()
+          }
+        }
+      );
     }
 
     const hasActiveSubscription = profile?.stripe_subscription_status === "active";
 
-    return NextResponse.json({
-      success: true,
-      hasActiveSubscription,
-      subscriptionStatus: profile?.stripe_subscription_status || null,
-      customerId: profile?.stripe_customer_id || null,
-      isAdmin: false
-    });
+    return new NextResponse(
+      JSON.stringify({
+        success: true,
+        hasActiveSubscription,
+        subscriptionStatus: profile?.stripe_subscription_status || null,
+        customerId: profile?.stripe_customer_id || null,
+        isAdmin: false
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Timestamp': new Date().toISOString()
+        }
+      }
+    );
 
   } catch (error) {
     console.error('Subscription check error:', error);
-    return NextResponse.json(
-      { error: 'Subscription check failed' },
-      { status: 500 }
+    return new NextResponse(
+      JSON.stringify({ error: 'Subscription check failed' }),
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 } 

@@ -7,7 +7,12 @@
     "build": "next build",
     "postbuild": "next-sitemap",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync-plans": "npx tsx scripts/sync-stripe-plans.ts",
+    "sync-plans:dry-run": "npx tsx scripts/sync-stripe-plans.ts --dry-run",
+    "test:word-billing": "npx tsx scripts/test-word-billing.ts",
+    "test:api": "echo 'Run manual API tests for word-based billing endpoints'",
+    "migrate:word-billing": "echo 'Run word-based billing migration scripts'"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
