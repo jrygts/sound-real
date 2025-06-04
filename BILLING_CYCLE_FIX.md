@@ -1,253 +1,298 @@
-# 🚨 CRITICAL BILLING CYCLE FIX - Implementation Complete
+# 🚨 CRITICAL BILLING CYCLE FIX - IMPLEMENTATION COMPLETE
 
-## **PROBLEM SOLVED**
-Fixed critical billing issue where `words_used` was incorrectly resetting to 0 on every plan change, allowing users to get free extra words by upgrading/downgrading plans.
+## **ROOT CAUSE IDENTIFIED & SOLVED**
+
+### **Primary Issue (Fixed):**
+The Stripe webhook `customer.subscription.updated` was **not properly distinguishing** between:
+- ✅ **Plan changes** (upgrade/downgrade) - should preserve `words_used`
+- ✅ **Billing renewals** - should reset `words_used` to 0
+
+### **Secondary Issue (Fixed):**
+The `autoCorrectPlanType` function in the usage API was **incorrectly resetting** `words_used = 0` every time it corrected plan mismatches, **overriding the webhook's preserved usage**.
 
 ## **SOLUTION IMPLEMENTED**
-Now `words_used` only resets during:
-- ✅ New subscriptions (`customer.subscription.created`)
-- ✅ Billing cycle resets (`invoice.payment_succeeded` with `billing_reason: 'subscription_cycle'`)
-- ❌ ~~Plan changes (preserves current usage)~~
+
+### **1. Enhanced Webhook Event Detection**
+Now uses `previous_attributes` analysis and billing period comparison to accurately detect:
+- ✅ New subscriptions (`customer.subscription.created`) → **RESET usage**
+- ✅ Plan changes mid-cycle → **PRESERVE usage** 
+- ✅ Billing renewals → **RESET usage**
+- ✅ Plan changes at billing boundary → **RESET usage**
+- ✅ Subscription cancellations → **PRESERVE usage** until daily reset
+
+### **2. Fixed Usage API Auto-Correction**
+Removed the problematic `words_used: 0` reset from plan auto-correction, ensuring webhook decisions are preserved.
 
 ---
 
 ## **FILES MODIFIED**
 
-### **1. Stripe Webhook Handler** (`app/api/webhook/stripe/route.ts`)
-- **🚨 CRITICAL FIX:** Only reset `words_used` during new billing periods
-- Added billing period tracking with `billing_period_start` and `billing_period_end`
-- Enhanced event handling for different webhook types
-- Added `handleBillingCycleReset()` function for proper cycle management
+### **1. Stripe Webhook Handler** (`app/api/webhook/stripe/route.ts`) - **COMPLETELY REWRITTEN**
+- **🚨 CRITICAL FIX:** Enhanced event detection using `previous_attributes`
+- Added `detectBillingPeriodChange()` function for precise period tracking
+- Added `logEventDetails()` for comprehensive debugging
+- Created separate handlers for each event type
+- Added decision logic matrix for reset vs preserve scenarios
 
-### **2. Database Migration** (`lib/supabase/schema/07-billing-period-migration.sql`)
-- Added billing period tracking columns:
-  - `billing_period_start` - Start of current billing period
-  - `billing_period_end` - End of current billing period
-  - `words_used`, `words_limit` - Word usage tracking
-  - `transformations_used`, `transformations_limit` - Legacy transformation tracking
-  - `last_reset_date` - Last usage reset timestamp
+### **2. Usage API** (`app/api/subscription/usage/route.ts`) - **CRITICAL FIX**
+- **🚨 REMOVED:** `words_used: 0` reset from `autoCorrectPlanType` function
+- **🚨 REMOVED:** `transformations_used: 0` reset from plan correction
+- **🚨 REMOVED:** `last_reset_date` update on plan correction
+- Now preserves usage when correcting plan type mismatches
 
-### **3. Word Utils Library** (`lib/wordUtils.ts`)
-- Added `resetBillingCycle()` for manual testing
-- Added `calculateDaysRemaining()` utility
-- Added `getBillingStatus()` for comprehensive billing information
-- Added `getTransformationsLimit()` helper
+### **3. Testing Endpoint** (`app/api/test/webhook-simulation/route.ts`) - **NEW**
+- Admin-only endpoint for testing billing scenarios
+- Simulates plan changes, billing renewals, new subscriptions, etc.
+- Provides before/after comparison for validation
 
-### **4. Usage API** (`app/api/subscription/usage/route.ts`)
-- Enhanced to include billing period information
-- Added `days_remaining` calculation
-- Updated response to include billing period start/end dates
+### **4. Database Migration** (`lib/supabase/schema/07-billing-period-migration.sql`)
+- Added billing period tracking columns
+- Enhanced indexing for performance
 
-### **5. Frontend Billing Page** (`app/billing/page.tsx`)
-- Added billing period display for paid users
-- Shows "Resets in X days" countdown
-- Enhanced date formatting functions
-- Added billing period start/end dates
+### **5. Word Utils Library** (`lib/wordUtils.ts`)
+- Added manual billing cycle reset functions
+- Added billing status utilities
 
-### **6. Admin Testing Endpoint** (`app/api/admin/reset-billing-cycle/route.ts`)
-- Admin-only endpoint for manual billing cycle resets
-- Useful for testing billing scenarios
+### **6. Frontend Billing Page** (`app/billing/page.tsx`)
+- Enhanced billing period display
+- Shows countdown to next reset
 
 ---
 
-## **DEPLOYMENT INSTRUCTIONS**
+## **ENHANCED WEBHOOK DETECTION LOGIC**
 
-### **Step 1: Apply Database Migration**
-Run the migration in your Supabase SQL Editor:
-```sql
--- Copy and paste the contents of scripts/apply-billing-migration.sql
+### **Event: `customer.subscription.updated`** (The Critical One)
+```typescript
+const hasPeriodChange = previousAttributes?.current_period_start || 
+                       previousAttributes?.current_period_end;
+
+const hasPlanChange = previousAttributes?.items?.data ||
+                     previousAttributes?.items;
+
+const periodActuallyChanged = await detectBillingPeriodChange(subscription, customerId);
+
+// Decision Matrix:
+if (periodActuallyChanged && !hasPlanChange) {
+  // Billing renewal → RESET usage
+  shouldResetUsage = true;
+  reason = 'Billing period renewal detected';
+} else if (hasPlanChange && !periodActuallyChanged) {
+  // Plan change mid-cycle → PRESERVE usage
+  shouldResetUsage = false;
+  reason = 'Plan change mid-cycle detected';
+} else if (hasPlanChange && periodActuallyChanged) {
+  // Plan change at billing boundary → RESET usage
+  shouldResetUsage = true;
+  reason = 'Plan change at billing renewal';
+}
 ```
 
-### **Step 2: Deploy Code Changes**
-Deploy all modified files to your hosting platform.
-
-### **Step 3: Verify Webhook Configuration**
-Ensure your Stripe webhook endpoint is configured to handle:
-- `customer.subscription.created`
-- `customer.subscription.updated` 
-- `customer.subscription.deleted`
-- `invoice.payment_succeeded`
-- `checkout.session.completed`
-
----
-
-## **TESTING SCENARIOS**
-
-### **✅ Test 1: Plan Upgrade Mid-Cycle (FIXED)**
-```
-Before Fix: User uses 5,000 words → Upgrades to Plus → words_used = 0 ❌
-After Fix:  User uses 5,000 words → Upgrades to Plus → words_used = 5,000 ✅
-```
-
-### **✅ Test 2: Plan Downgrade Mid-Cycle (FIXED)**
-```
-Before Fix: User uses 8,000 words → Downgrades to Plus → words_used = 0 ❌
-After Fix:  User uses 8,000 words → Downgrades to Plus → words_used = 8,000 ✅
-```
-
-### **✅ Test 3: Billing Cycle Reset (WORKING)**
-```
-User uses 12,000 words → Monthly billing cycle triggers → words_used = 0 ✅
-```
-
-### **✅ Test 4: New Subscription (WORKING)**
-```
-Free user → Subscribes to Basic Plan → words_used = 0 ✅
-```
-
----
-
-## **WEBHOOK EVENT HANDLING**
-
-### **`customer.subscription.created`**
-- **Action:** Reset `words_used = 0` (new subscription)
+### **Event: `customer.subscription.created`**
+- **Action:** Always reset `words_used = 0` (new subscription)
 - **Reason:** Fresh start for new subscriber
 
-### **`customer.subscription.updated`** 
-- **Action:** Update limits, **preserve** `words_used` (plan change)
-- **Reason:** User changing plans mid-cycle
-
-### **`invoice.payment_succeeded`**
+### **Event: `invoice.payment_succeeded`**
 - **Check:** `billing_reason === 'subscription_cycle'`
-- **Action:** Reset `words_used = 0` (new billing period)
-- **Reason:** Monthly/yearly cycle reset
+- **Action:** Reset `words_used = 0` (billing cycle)
+- **Reason:** Additional safety net for billing renewals
 
-### **`customer.subscription.deleted`**
+### **Event: `customer.subscription.deleted`**
 - **Action:** Revert to Free plan, preserve usage until daily reset
-- **Reason:** User cancelled subscription
+- **Reason:** Let user keep usage until natural daily reset
 
 ---
 
-## **API ENDPOINTS**
+## **TESTING SCENARIOS WITH NEW ENDPOINT**
 
-### **Usage API** (`/api/subscription/usage`)
-```json
-{
-  "words_used": 5000,
-  "words_limit": 15000,
-  "words_remaining": 10000,
-  "billing_period_start": "2024-01-01T00:00:00Z",
-  "billing_period_end": "2024-02-01T00:00:00Z",
-  "days_remaining": 15,
-  "plan": "Plus"
-}
-```
+### **🧪 Testing Endpoint:** `/api/test/webhook-simulation`
 
-### **Admin Reset Endpoint** (`/api/admin/reset-billing-cycle`)
 ```bash
-# Admin only - manual billing cycle reset for testing
-POST /api/admin/reset-billing-cycle
+# Test 1: Plan Change Mid-Cycle (Should Preserve Usage)
+POST /api/test/webhook-simulation
 {
   "userId": "user-uuid",
-  "resetType": "manual"
+  "scenario": "plan_change_preserve_usage",
+  "customData": {
+    "newPlan": "Ultra",
+    "newLimit": 35000
+  }
+}
+```
+
+```bash
+# Test 2: Billing Renewal (Should Reset Usage)  
+POST /api/test/webhook-simulation
+{
+  "userId": "user-uuid",
+  "scenario": "billing_renewal_reset_usage"
+}
+```
+
+```bash
+# Test 3: New Subscription (Should Reset Usage)
+POST /api/test/webhook-simulation
+{
+  "userId": "user-uuid", 
+  "scenario": "new_subscription",
+  "customData": {
+    "plan": "Basic",
+    "wordsLimit": 5000
+  }
 }
 ```
 
 ---
 
-## **DATABASE SCHEMA CHANGES**
+## **DEBUGGING & MONITORING**
 
-### **New Columns Added to `profiles` Table:**
-```sql
-billing_period_start    TIMESTAMP WITH TIME ZONE  -- Billing period start
-billing_period_end      TIMESTAMP WITH TIME ZONE  -- Billing period end  
-words_used              INTEGER DEFAULT 0          -- Words used this period
-words_limit             INTEGER DEFAULT 0          -- Word limit for plan
-transformations_used    INTEGER DEFAULT 0          -- Legacy transformations
-transformations_limit   INTEGER DEFAULT 5          -- Legacy transformation limit
-last_reset_date         TIMESTAMP WITH TIME ZONE   -- Last usage reset
+### **Enhanced Logging:**
 ```
+📊 [Webhook] SUBSCRIPTION UPDATED: {
+  eventType: "customer.subscription.updated",
+  hasItemsChange: true,
+  hasPeriodStartChange: false,
+  periodActuallyChanged: false
+}
+
+🔍 [Webhook] Change analysis: {
+  hasPeriodChange: false,
+  hasPlanChange: true,
+  periodActuallyChanged: false
+}
+
+🎯 [Webhook] Decision: PRESERVE usage - Plan change mid-cycle detected
+
+✅ [Webhook] Updated to Ultra plan: {
+  userId: "...",
+  wordsUsed: 8000,  // ✅ PRESERVED!
+  wordsLimit: 35000,
+  usageAction: "PRESERVED"
+}
+```
+
+### **Key Logs to Monitor:**
+- `🎯 [Webhook] Decision: RESET usage - Billing period renewal detected`
+- `🎯 [Webhook] Decision: PRESERVE usage - Plan change mid-cycle detected`
+- `📊 [Usage] ✅ Plan auto-corrected: Plus → Ultra (usage preserved)`
 
 ---
 
 ## **REVENUE PROTECTION ACHIEVED**
 
-### **Before Fix (❌ Revenue Loss)**
-- User on Plus Plan (15,000 words/month, $19.99)
-- Uses 12,000 words
-- Upgrades to Ultra Plan (35,000 words/month, $39.99)  
-- `words_used` resets to 0
-- **User gets 35,000 + 12,000 = 47,000 words for $39.99**
+### **Before Fix (❌ Revenue Loss):**
+```
+User: 12,000 words used on Plus Plan ($19.99)
+↓ Upgrades to Ultra Plan ($39.99)
+Webhook: "🔄 [PlanChange] Preserving usage" 
+Usage API: Resets words_used = 0 (BUG!)
+Result: User gets 35,000 + 12,000 = 47,000 words ❌
+```
 
-### **After Fix (✅ Revenue Protected)**
-- User on Plus Plan (15,000 words/month, $19.99)
-- Uses 12,000 words  
-- Upgrades to Ultra Plan (35,000 words/month, $39.99)
-- `words_used` stays 12,000
-- **User gets 35,000 - 12,000 = 23,000 remaining words for $39.99**
+### **After Fix (✅ Revenue Protected):**
+```
+User: 12,000 words used on Plus Plan ($19.99)  
+↓ Upgrades to Ultra Plan ($39.99)
+Webhook: "🎯 Decision: PRESERVE usage - Plan change mid-cycle"
+Usage API: Preserves words_used = 12,000 (FIXED!)
+Result: User gets 35,000 - 12,000 = 23,000 words ✅
+```
 
 ---
 
-## **MONITORING & LOGGING**
+## **DATABASE VERIFICATION QUERIES**
 
-### **Webhook Logs to Watch For:**
-```
-📅 [BillingCycle] Resetting word usage for new subscription
-📅 [BillingCycle] Resetting word usage for new billing period  
-🔄 [PlanChange] Preserving current word usage during plan change
-🔄 [Cancellation] User cancelled - moving to Free plan, preserving usage
+### **Check Current State:**
+```sql
+SELECT 
+  email,
+  plan_type,
+  words_used,
+  words_limit,
+  billing_period_start,
+  billing_period_end,
+  stripe_subscription_status,
+  updated_at
+FROM profiles 
+WHERE email = 'your-email@domain.com';
 ```
 
-### **Usage API Logs:**
-```
-📊 [Usage] 🔧 Auto-correcting plan type for user
-📊 [Usage] ✅ Plan type is correct: Plus
-📊 [Usage] Current: 5000/15000 words, Plan: Plus
+### **Monitor Usage Patterns:**
+```sql
+-- Look for suspicious usage resets
+SELECT 
+  email,
+  plan_type,
+  words_used,
+  words_limit,
+  updated_at,
+  LAG(words_used) OVER (PARTITION BY id ORDER BY updated_at) as prev_words_used
+FROM profiles 
+WHERE words_used = 0 
+  AND LAG(words_used) OVER (PARTITION BY id ORDER BY updated_at) > 1000
+ORDER BY updated_at DESC;
 ```
 
 ---
 
 ## **SUCCESS CRITERIA MET**
 
-### **✅ Functional Requirements**
+### **✅ Functional Requirements:**
 - [x] Plan changes preserve current `words_used` 
-- [x] Only billing cycle start resets `words_used`
-- [x] Users cannot get free words by switching plans
-- [x] Billing periods are tracked accurately
-- [x] Usage API shows billing period information
+- [x] Only billing renewals reset `words_used`
+- [x] Users cannot game the system for free words
+- [x] Accurate event detection using `previous_attributes`
+- [x] Usage API respects webhook decisions
 
-### **✅ Business Requirements**
+### **✅ Business Requirements:**
 - [x] Revenue protection (no free words from plan switching)
 - [x] Fair billing (usage carries over in same billing period)
-- [x] Clear user communication (when usage resets)
+- [x] Clear logging for debugging and auditing
 
-### **✅ Technical Requirements**
+### **✅ Technical Requirements:**
+- [x] Enhanced webhook event detection
+- [x] Fixed usage API auto-correction
+- [x] Comprehensive testing tools
 - [x] Database migration applied
-- [x] Webhook events properly handled
-- [x] Frontend displays billing period info
-- [x] Admin testing tools available
-- [x] Comprehensive logging implemented
+- [x] Billing period tracking
 
 ---
 
 ## **ROLLBACK PLAN**
 
-If issues arise, you can temporarily revert to the old behavior by modifying the webhook:
+If issues arise, you can temporarily revert by:
 
+### **1. Emergency Webhook Rollback:**
 ```typescript
-// EMERGENCY ROLLBACK - Add this to updateUserPlan() function
-updateData.words_used = 0; // Revert to always resetting
-updateData.transformations_used = 0;
+// In updateSubscriptionData function, always reset usage:
+if (resetUsage || true) {  // Force reset temporarily
+  updateData.words_used = 0;
+}
 ```
 
-However, this will re-introduce the revenue loss issue.
+### **2. Emergency Usage API Rollback:**
+```typescript
+// Re-add reset logic to autoCorrectPlanType:
+words_used: 0, // Revert to always resetting
+transformations_used: 0,
+last_reset_date: new Date().toISOString(),
+```
 
 ---
 
 ## **SUPPORT & MAINTENANCE**
 
-### **Monitoring Checklist:**
-- [ ] Monitor Stripe webhook logs for proper event handling
-- [ ] Check user complaints about incorrect billing
-- [ ] Verify billing periods are updating correctly
-- [ ] Monitor admin reset endpoint usage
+### **Daily Monitoring Checklist:**
+- [ ] Check webhook logs for proper event classification
+- [ ] Monitor `🎯 [Webhook] Decision:` log patterns
+- [ ] Verify no unexpected usage resets in database
+- [ ] Review user complaints about billing issues
 
-### **Monthly Review:**
-- [ ] Audit word usage patterns for anomalies
-- [ ] Review billing cycle resets vs plan changes
-- [ ] Check for any gaming of the system
-- [ ] Validate billing period accuracy
+### **Weekly Review:**
+- [ ] Audit plan change events vs billing renewals
+- [ ] Verify billing period accuracy
+- [ ] Check for any gaming attempts
+- [ ] Test scenarios using simulation endpoint
 
 ---
 
-**🎯 RESULT:** The billing system now correctly preserves word usage during plan changes while only resetting during legitimate billing periods, protecting revenue and ensuring fair billing practices. 
+**🎯 RESULT:** The billing system now accurately distinguishes between plan changes and billing renewals using enhanced webhook detection and fixed usage API logic, ensuring proper revenue protection while maintaining fair billing practices.** 

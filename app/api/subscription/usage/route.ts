@@ -163,7 +163,7 @@ async function autoCorrectPlanType(
     if (needsCorrection) {
       console.log(`📊 [Usage] 🔄 Plan mismatch detected! Cached: ${currentPlanType}, Stripe: ${correctPlan.planType}`);
       
-      // Update the database with correct plan
+      // 🚨 CRITICAL FIX: Update plan details WITHOUT resetting usage
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
@@ -171,9 +171,6 @@ async function autoCorrectPlanType(
           words_limit: correctPlan.wordsLimit,
           transformations_limit: correctPlan.transformationsLimit,
           stripe_subscription_status: stripeStatus.status,
-          words_used: 0, // Reset usage on plan correction
-          transformations_used: 0, // Reset transformations too
-          last_reset_date: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
@@ -190,7 +187,7 @@ async function autoCorrectPlanType(
         };
       }
       
-      console.log(`📊 [Usage] ✅ Plan auto-corrected: ${currentPlanType} → ${correctPlan.planType}`);
+      console.log(`📊 [Usage] ✅ Plan auto-corrected: ${currentPlanType} → ${correctPlan.planType} (usage preserved)`);
       
       return {
         planType: correctPlan.planType,
