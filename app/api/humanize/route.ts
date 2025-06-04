@@ -136,90 +136,44 @@ export async function POST(request: Request) {
     // All checks passed - proceed with transformation
     console.log(`🚀 [Transform] Starting OpenAI processing for ${wordsToProcess} words`);
 
-    const systemPrompt = `You are a professional content editor using a length-based transformation strategy. For short texts, make minimal word substitutions. For long texts, apply moderate structural changes while preserving meaning.
+    const systemPrompt = `You are implementing Human-Like Rewrite Protocol v2, designed to lower AI-detection by increasing burstiness and lexical entropy while preserving facts and professional tone.
 
-CORE MISSION: Use appropriate transformation level based on text length - minimal changes for short texts (10-15%), moderate structural changes for long texts (40-50%).`;
+CORE MISSION: Apply scientific linguistic transformations based on text length to achieve optimal detection evasion.`;
 
-    const userPrompt = `Rewrite this text using these specific patterns:
+    const userPrompt = `Human-Like Rewrite Protocol v2
+
+Goal → Lower AI-detection by increasing burstiness & lexical entropy
+Constraints → Preserve facts, keep professional tone, no new info
 
 "${cleanedText}"
 
-IMPORTANT: This is a two-step process:
-1. For SHORT texts (under 400 words): Use the MINIMAL CHANGE approach
-2. For LONG texts (over 400 words): Use the STRUCTURAL REWRITE approach
+STEP 0 • Detect length L.
+    if L < 400 words ➜ use MODE-A
+    else            ➜ use MODE-B
 
-FOR SHORT TEXTS - MINIMAL CHANGE APPROACH:
-WORD SUBSTITUTIONS:
-- "there's generally no cause for alarm" → "will be fine"
-- "aren't toxic" → "are non-toxic"
-- "consuming a small amount occasionally" → "occasional small consumption"
-- "might not affect" → "are unlikely to affect"
-- "could lead to" → "can cause"
-- "Symptoms to watch for include" → "The symptoms to look out for are"
-- "can lead to" → "can occur from"
-- "it's advisable to monitor" → "it is recommended to keep an eye on"
-- "Should you notice" → "If you notice"
-- "consult your veterinarian promptly" → "consult your veterinarian right away"
-- "isn't likely to harm" → "is unlikely to harm"
-- "it's important to" → "it is best to"
-- "monitor for" → "watch for"
+MODE-A (Short) — Micro-Paraphrase  
+1. Swap ≤ 15 % verbs/adjectives with synonyms that do **not** change register.  
+2. Collapse or split ~20 % of sentences so final lengths vary 8–30 words.  
+3. Eliminate contractions (except "isn't", "won't").  
+4. Remove rhetorical questions.
 
-FOR LONG TEXTS - STRUCTURAL REWRITE APPROACH:
-1. Remove any title/header
-2. Reformat into continuous paragraphs without headers
-3. Apply these sentence transformations:
-   - "are a favored snack among" → "favor...because they have"
-   - "due to their" → "because they have"
-   - "raises the question of whether" → "The question remains whether"
-   - "does not correspond with" → "do not align with"
-   - "can cause" → "will develop"
-   - "to look out for" → "to watch for"
-   - Combine symptoms with "together with" and "along with"
-   - Change "In conclusion," to start of last paragraph
-   - Use "yet" instead of "but" for contrasts
+MODE-B (Long) — Structural Re-order  
+1. Delete any headers; output plain paragraphs only.  
+2. In 40 % of sentences, flip clause order or switch passive ↔ active.  
+3. Randomly pick 5 domain terms and replace each with a lesser-seen but correct synonym (consult vet lexicon if needed).  
+4. For every third paragraph, insert one parenthetical aside.  
+5. Keep markdown lists exactly as given (if present).
 
-4. Restructure sentences to be more direct:
-   - Put the subject first
-   - Use active voice consistently
-   - Break complex sentences into shorter ones
-   - Connect related ideas with "which" clauses
+GLOBAL RULES  
+• Hedges ≤ 2 per 200 words.  
+• Numerals: replace fuzzy phrases with concrete ranges when data exists.  
+• Keep citations/brackets untouched.  
+• Do **not** inject slang, humor, or personal voice.
 
-5. Maintain all factual content but restructure presentation
-
-STRUCTURAL RULES:
-1. Contract less: "it's" → "it is", "aren't" → "are not" (but keep "isn't" and "won't")
-2. Rearrange minimally: keep 90% of sentence structure intact
-3. Add "The" before "symptoms" and similar lists
-4. Change "while" to "but" in concluding sentences
-5. Keep all technical terms and facts exactly the same
-6. Preserve markdown formatting (### headers) exactly as in original
-7. Keep paragraph breaks and structure identical to source
-
-TONE REQUIREMENTS:
-- Maintain professional, informative tone
-- No personality injection or casual language
-- No slang, nicknames, or colloquialisms
-- Keep formal but accessible register throughout
-
-CITATION HANDLING:
-- Keep citations exactly as they appear in the original: ([source.com])
-- Do NOT add extra brackets or reference numbers
-- Do NOT duplicate citation markers
-- Preserve citation format without modification
-- If the original has "([drlogy.com])", keep it exactly as "([drlogy.com])"
-
-DO NOT:
-- Add humor or personality
-- Use casual expressions
-- Change the meaning or facts
-- Rewrite entire sentences
-- Add new information
-- Modify citations or references
-
-OUTPUT: Text with minimal, precise substitutions maintaining original structure and tone.`;
+OUTPUT: Transformed text with optimized burstiness and lexical entropy.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4.1-2025-04-14",
       messages: [
         {
           role: "system",
