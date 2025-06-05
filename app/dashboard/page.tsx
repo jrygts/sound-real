@@ -5,84 +5,58 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { GradientButton } from "@/components/gradient-button"
-import { ArrowUpRight, FileText, RefreshCw } from "lucide-react"
+import { ArrowUpRight, FileText, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/libs/supabase/client"
 
-const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
-  const calculateTimeLeft = () => {
-    const difference = +targetDate - +new Date()
-    let timeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0 }
-
-    if (difference > 0) {
-      timeLeft = {
-        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
-      }
-    }
-    return timeLeft
-  }
-
-  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft())
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setTimeLeft(calculateTimeLeft())
-    }, 1000)
-    return () => clearTimeout(timer)
-  })
-
-  return (
-    <div className="flex space-x-2 font-mono text-2xl md:text-3xl">
-      {Object.entries(timeLeft).map(([interval, value]) => (
-        <div key={interval} className="flex flex-col items-center">
-          <span className="font-bold">{String(value).padStart(2, "0")}</span>
-          <span className="text-xs text-muted-foreground uppercase">{interval}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export default function DashboardOverviewPage() {
   const [wordProgress, setWordProgress] = useState(0)
-  const [transformProgress, setTransformProgress] = useState(0)
   const [usage, setUsage] = useState<any>(null)
   const [recentTransformations, setRecentTransformations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const supabase = createClient()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setError(null)
+        
         // Fetch usage data
         const usageResponse = await fetch('/api/subscription/usage')
         if (usageResponse.ok) {
           const usageData = await usageResponse.json()
           setUsage(usageData.usage)
           
-          // Animate progress bars based on real data
+          // Animate progress bar based on real data
           setTimeout(() => {
             setWordProgress((usageData.usage.words_used / usageData.usage.words_limit) * 100)
-            setTransformProgress((usageData.usage.transformations_used / usageData.usage.transformations_limit) * 100)
           }, 300)
+        } else {
+          const errorData = await usageResponse.json()
+          if (usageResponse.status === 401 || errorData.error === "Not authenticated") {
+            setError("Please log in to view your dashboard")
+          } else {
+            setError("Failed to load usage data")
+          }
         }
 
         // Fetch recent transformations
-        const { data: transformations } = await supabase
+        const { data: transformations, error: supabaseError } = await supabase
           .from('transformations')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(5)
 
-        if (transformations) {
+        if (supabaseError) {
+          console.error('Error fetching transformations:', supabaseError)
+        } else if (transformations) {
           setRecentTransformations(transformations)
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error)
+        setError("Failed to load dashboard data")
       } finally {
         setLoading(false)
       }
@@ -91,11 +65,6 @@ export default function DashboardOverviewPage() {
     fetchData()
   }, [supabase])
 
-  // Calculate next reset date (assuming monthly billing cycle)
-  const nextResetDate = new Date()
-  nextResetDate.setMonth(nextResetDate.getMonth() + 1)
-  nextResetDate.setDate(1) // First day of next month
-
   if (loading) {
     return <div className="space-y-6">
       <h1 className="text-3xl font-heading font-semibold">Dashboard Overview</h1>
@@ -103,11 +72,31 @@ export default function DashboardOverviewPage() {
     </div>
   }
 
+  if (error) {
+    return <div className="space-y-6">
+      <h1 className="text-3xl font-heading font-semibold">Dashboard Overview</h1>
+      <Card className="border-destructive">
+        <CardContent className="flex items-center gap-4 p-6">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <div>
+            <h3 className="font-semibold text-destructive">Error</h3>
+            <p className="text-sm text-muted-foreground">{error}</p>
+            {error.includes("log in") && (
+              <Button asChild className="mt-2">
+                <Link href="/signin">Sign In</Link>
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-heading font-semibold">Dashboard Overview</h1>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-1">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Word Usage</CardTitle>
@@ -126,39 +115,10 @@ export default function DashboardOverviewPage() {
             </p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Humanizations</CardTitle>
-            <CardDescription>Your humanization usage.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Progress
-              value={transformProgress}
-              className="h-3 mb-2 bg-slate-200 dark:bg-slate-700 [&>div]:bg-green-500"
-            />
-            <p className="text-sm text-muted-foreground">
-              <span className="font-mono font-semibold text-foreground dark:text-slate-100">
-                {usage?.transformations_used?.toLocaleString() || 0}
-              </span>{" "}
-              / {usage?.transformations_limit?.toLocaleString() || 0}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">Next Usage Reset</CardTitle>
-            <CardDescription>Time until your limits refresh.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center py-6">
-            <CountdownTimer targetDate={nextResetDate} />
-          </CardContent>
-        </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-6 lg:grid-cols-1">
+        <div className="space-y-6">
           {usage?.plan !== "Ultra" && (
             <Card className="bg-gradient-to-r from-soundrealBlue to-blue-400 text-primary-foreground dark:from-soundrealBlue/80 dark:to-blue-400/80">
               <CardHeader>
@@ -224,25 +184,6 @@ export default function DashboardOverviewPage() {
             </CardContent>
           </Card>
         </div>
-
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-xl">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <GradientButton className="w-full justify-start" icon={<RefreshCw className="h-4 w-4" />} asChild>
-              <Link href="/dashboard/humanize">
-                New Humanize
-              </Link>
-            </GradientButton>
-            <Button variant="outline" className="w-full justify-start">
-              Manage API Keys (Soon)
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              View Documentation
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
