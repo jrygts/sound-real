@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+<url><loc>https://shipfa.st/apple-icon.png</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/cancel</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/auth-test</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/billing</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/dashboard/billing</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/dashboard</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/debug/webhook-monitor</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/pricing</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/dashboard/usage</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/signin</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/success</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/tos</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/debug/plan-tester</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/dashboard/settings</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/debug</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://shipfa.st/privacy-policy</loc><lastmod>2025-06-05T10:49:13.469Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+</urlset>

@@ -67,72 +67,49 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      // Handle authenticated users with new word-based billing
-      const isAdmin = isUserAdmin({ email: user.email, id: user.id });
-      
-      if (!isAdmin) {
-        // Get current usage before processing
-        try {
-          const usageResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/subscription/usage`, {
-            method: 'GET',
-            headers: {
-              'Cookie': request.headers.get('Cookie') || '',
-              'Authorization': `Bearer ${request.headers.get('Authorization')?.replace('Bearer ', '') || ''}`,
-            },
-          });
+              // Handle authenticated users with new word-based billing
+        const isAdmin = isUserAdmin({ email: user.email, id: user.id });
+        
+        if (!isAdmin) {
+          // Get current usage before processing
+          try {
+            const usageResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/subscription/usage`, {
+              method: 'GET',
+              headers: {
+                'Cookie': request.headers.get('Cookie') || '',
+                'Authorization': `Bearer ${request.headers.get('Authorization')?.replace('Bearer ', '') || ''}`,
+              },
+            });
 
-          if (!usageResponse.ok) {
-            console.error('📊 [Transform] Failed to get usage data');
+            if (!usageResponse.ok) {
+              console.error('📊 [Transform] Failed to get usage data');
+              return NextResponse.json(
+                { error: "Unable to check usage limits. Please try again." },
+                { status: 500 }
+              );
+            }
+
+            const usageData = await usageResponse.json();
+            const usage = usageData.usage;
+
+            console.log(`📊 [Usage] Current: ${usage.words_used}/${usage.words_limit} words, Plan: ${usage.plan}`);
+
+            /* Guard: refuse if this job would exceed quota */
+            if (usage.words_used + wordsToProcess > usage.words_limit && usage.words_limit !== -1) {
+              return NextResponse.json(
+                { error: "limit-reached", words_remaining: usage.words_limit - usage.words_used },
+                { status: 403 },
+              );
+            }
+
+          } catch (error) {
+            console.error('📊 [Transform] Usage check error:', error);
             return NextResponse.json(
-              { error: "Unable to check usage limits. Please try again." },
+              { error: "Unable to verify usage limits. Please try again." },
               { status: 500 }
             );
           }
-
-          const usageData = await usageResponse.json();
-          const usage = usageData.usage;
-
-          console.log(`📊 [Usage] Current: ${usage.words_used}/${usage.words_limit} words, Plan: ${usage.plan}`);
-
-          // Check limits BEFORE processing
-          if (usage.plan === 'Free') {
-            // Free users: Check transformation limits
-            if (usage.remaining <= 0) {
-              return NextResponse.json(
-                { 
-                  error: "WORD_LIMIT_EXCEEDED",
-                  message: "Free trial limit reached (250 words total). Upgrade for monthly word allowances.",
-                  usage: usage,
-                  upgradeUrl: "/billing"
-                },
-                { status: 429 }
-              );
-            }
-          } else {
-            // Paid users: Check word limits
-            if (wordsToProcess > usage.words_remaining) {
-              return NextResponse.json(
-                { 
-                  error: "WORD_LIMIT_EXCEEDED",
-                  message: `You need ${wordsToProcess} words but only have ${usage.words_remaining} remaining.`,
-                  wordsNeeded: wordsToProcess,
-                  wordsRemaining: usage.words_remaining,
-                  usage: usage,
-                  upgradeUrl: "/billing"
-                },
-                { status: 429 }
-              );
-            }
-          }
-
-        } catch (error) {
-          console.error('📊 [Transform] Usage check error:', error);
-          return NextResponse.json(
-            { error: "Unable to verify usage limits. Please try again." },
-            { status: 500 }
-          );
         }
-      }
     }
     
     // All checks passed - proceed with transformation
@@ -224,40 +201,19 @@ Return only the rewritten text, no explanations.`;
         const isAdmin = isUserAdmin({ email: user.email, id: user.id });
         
         if (!isAdmin) {
-          try {
-            const usageUpdateResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/subscription/usage`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Cookie': request.headers.get('Cookie') || '',
-                'Authorization': `Bearer ${request.headers.get('Authorization')?.replace('Bearer ', '') || ''}`,
-              },
-              body: JSON.stringify({ 
-                text: cleanedText, // Pass the text for word counting
-                mode: 'increment' 
-              })
-            });
-
-            if (usageUpdateResponse.ok) {
-              const updatedUsageData = await usageUpdateResponse.json();
-              console.log(`📈 [Usage] Successfully updated: ${updatedUsageData.wordsProcessed || 0} words processed`);
-              
-              // Return success with updated usage
-              return NextResponse.json({
-                success: true,
-                humanizedText,
-                aiScoreBefore: mockScoreBefore,
-                aiScoreAfter: mockScoreAfter,
-                wordCount: wordsToProcess,
-                usage: updatedUsageData.usage
-              });
-            } else {
-              console.error('📊 [Transform] Usage update failed, but transformation succeeded');
-              // Return success anyway since transformation worked
+          const { error: incErr } = await supabase.rpc("increment_words_used", {
+            uid: user.id,
+            add_words: wordsToProcess,
+          });
+          
+          if (incErr) {
+            if (incErr.message.includes("limit-reached")) {
+              return NextResponse.json(
+                { error: "limit-reached", words_remaining: 0 },
+                { status: 403 },
+              );
             }
-          } catch (error) {
-            console.error('📊 [Transform] Usage update error:', error);
-            // Continue and return success since transformation worked
+            throw incErr;
           }
         }
       } catch (error) {
