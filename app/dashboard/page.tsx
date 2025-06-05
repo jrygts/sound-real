@@ -83,7 +83,7 @@ export default function DashboardOverviewPage() {
             <p className="text-sm text-muted-foreground">{error}</p>
             {error.includes("log in") && (
               <Button asChild className="mt-2">
-                <Link href="/signin">Sign In</Link>
+                <Link href="/auth">Sign In</Link>
               </Button>
             )}
           </div>

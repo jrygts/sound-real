@@ -49,7 +49,7 @@ export default function BillingPage() {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      router.push('/signin')
+              router.push('/auth')
       return
     }
 

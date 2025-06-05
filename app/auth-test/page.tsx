@@ -303,7 +303,7 @@ export default function AuthTestPage() {
           <div className="card-body">
             <h2 className="card-title">Quick Actions</h2>
             <div className="flex flex-wrap gap-2">
-              <Link href="/signin" className="btn btn-outline btn-sm">
+              <Link href="/auth" className="btn btn-outline btn-sm">
                 🔐 Go to Sign In
               </Link>
               <Link href="/dashboard" className="btn btn-outline btn-sm">

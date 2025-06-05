@@ -12,7 +12,6 @@ import {
   User, 
   Bell, 
   Shield, 
-  Key, 
   Trash2, 
   Download,
   Mail,
@@ -294,19 +293,6 @@ export default function SettingsPage() {
           <Separator />
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Password</Label>
-                <p className="text-sm text-muted-foreground">
-                  Last changed: {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Unknown'}
-                </p>
-              </div>
-              <Button variant="outline" size="sm">
-                <Key className="h-4 w-4 mr-2" />
-                Change Password
-              </Button>
-            </div>
-            
             <div className="flex items-center justify-between">
               <div>
                 <Label>Active Sessions</Label>
