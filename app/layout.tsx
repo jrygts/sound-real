@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/components/SessionProvider";
 import { createClient } from "@/libs/supabase/server";
 import "./globals.css";
+// Runtime guard: Ensure no test Stripe keys in production
+import "@/lib/ensureStripeLive";
 
 export const viewport: Viewport = {
 	// Will use the primary color of your theme to show a nice theme color in the URL bar of supported browsers

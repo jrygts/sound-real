@@ -15,7 +15,9 @@
     "test:word-billing": "npx tsx scripts/test-word-billing.ts",
     "test:post-processor": "npx tsx src/lib/postProcessor.test.ts",
     "test:api": "echo 'Run manual API tests for word-based billing endpoints'",
-    "migrate:word-billing": "echo 'Run word-based billing migration scripts'"
+    "migrate:word-billing": "echo 'Run word-based billing migration scripts'",
+    "check:stripe-keys": "node scripts/stripe-key-check.js",
+    "prebuild": "npm run check:stripe-keys"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
