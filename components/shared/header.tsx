@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Logo } from "@/components/logo"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
-import { GradientButton } from "@/components/gradient-button"
+import GetStartedButton from "@/components/shared/GetStartedButton"
 import { Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -30,9 +30,9 @@ export function AppHeader() {
         </nav>
         <div className="flex items-center space-x-2">
           <ThemeToggleButton />
-          <GradientButton asChild className="hidden md:inline-flex" size="sm">
-            <Link href="/dashboard">Get Started</Link>
-          </GradientButton>
+          <div className="hidden md:inline-flex">
+            <GetStartedButton />
+          </div>
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
@@ -51,9 +51,9 @@ export function AppHeader() {
                       {item.label}
                     </Link>
                   ))}
-                  <GradientButton asChild className="w-full mt-4">
-                    <Link href="/dashboard">Get Started</Link>
-                  </GradientButton>
+                  <div className="w-full mt-4">
+                    <GetStartedButton />
+                  </div>
                 </nav>
               </SheetContent>
             </Sheet>

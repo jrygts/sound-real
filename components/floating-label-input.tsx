@@ -2,10 +2,10 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Input, type InputProps } from "@/components/ui/input"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-interface FloatingLabelInputProps extends InputProps {
+interface FloatingLabelInputProps extends React.ComponentProps<"input"> {
   label: string
   wrapperClassName?: string
 }

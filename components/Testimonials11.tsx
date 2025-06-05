@@ -225,7 +225,7 @@ const Testimonial = ({ i }: { i: number }) => {
 
 // A video tesionial to build trust. 2 or 3 on a wall of love is perfect.
 const VideoTestimonial = ({ i }: { i: number }) => {
-  const vidRef = useRef(null);
+  const vidRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -237,10 +237,10 @@ const VideoTestimonial = ({ i }: { i: number }) => {
 
   const handlePlayVideo = () => {
     if (isPlaying) {
-      vidRef.current.pause();
+      vidRef.current?.pause();
       setIsPlaying(false);
     } else {
-      vidRef.current.play();
+      vidRef.current?.play();
       setIsPlaying(true);
 
       if (vidRef.current?.readyState === 0) setIsLoading(true);

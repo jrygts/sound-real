@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/libs/supabase/client"
+import { PLAN_CONFIGS, type PlanKey } from "@/libs/stripe/plans"
 
 export default function BillingPage() {
   const [subscription, setSubscription] = useState<any>(null)
@@ -100,31 +101,51 @@ export default function BillingPage() {
         <CardContent className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <h3 className="font-semibold text-lg mb-2">
-                {subscription?.plan_name || 'Free'} Plan
-              </h3>
-              <div className="space-y-2 text-sm">
-                {subscription?.amount && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount:</span>
-                    <span className="font-mono">
-                      ${(subscription.amount / 100).toFixed(2)}/{subscription.interval || 'month'}
-                    </span>
+              {subscription ? (
+                <>
+                  <h3 className="font-semibold text-lg mb-2">
+                    {subscription.plan_name} Plan
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Amount:</span>
+                      <span className="font-mono">
+                        ${(subscription.amount / 100).toFixed(2)}/{subscription.interval || 'month'}
+                      </span>
+                    </div>
+                    {subscription.current_period_start && subscription.current_period_end && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Billing Period:</span>
+                        <span>
+                          {formatDate(subscription.current_period_start)} - {formatDate(subscription.current_period_end)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Auto-renew:</span>
+                      <span>{subscription.cancel_at_period_end ? "Disabled" : "Enabled"}</span>
+                    </div>
+                    
+                    {/* Show plan features */}
+                    {PLAN_CONFIGS[subscription.plan_name as PlanKey] && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-sm font-medium mb-2">Plan includes:</p>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          <li>• {PLAN_CONFIGS[subscription.plan_name as PlanKey].words.toLocaleString()} words/month</li>
+                          <li>• {PLAN_CONFIGS[subscription.plan_name as PlanKey].tx.toLocaleString()} transformations/month</li>
+                          <li>• Advanced AI detection bypass</li>
+                          <li>• Priority support</li>
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                )}
-                {subscription?.current_period_start && subscription?.current_period_end && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Billing Period:</span>
-                    <span>
-                      {formatDate(subscription.current_period_start)} - {formatDate(subscription.current_period_end)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Auto-renew:</span>
-                  <span>{subscription?.cancel_at_period_end ? "Disabled" : "Enabled"}</span>
-                </div>
-              </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-semibold text-lg mb-2">Free Plan</h3>
+                  <p className="text-sm text-muted-foreground">You don&apos;t have an active subscription.</p>
+                </>
+              )}
             </div>
             
             <div className="space-y-3">
@@ -134,12 +155,27 @@ export default function BillingPage() {
                   {subscription?.status === 'active' ? 'Upgrade Plan' : 'Choose Plan'}
                 </Link>
               </GradientButton>
-              {subscription?.customer_portal_url && (
-                <Button variant="outline" className="w-full" asChild>
-                  <a href={subscription.customer_portal_url} target="_blank" rel="noopener noreferrer">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Manage Subscription
-                  </a>
+              {subscription && (
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/stripe/customer-portal", { method: "POST" });
+                      if (res.ok) {
+                        const { url } = await res.json();
+                        window.location.href = url;
+                      } else {
+                        alert("Failed to open customer portal. Please try again.");
+                      }
+                    } catch (error) {
+                      console.error("Portal error:", error);
+                      alert("Failed to open customer portal. Please try again.");
+                    }
+                  }}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Manage Subscription
                 </Button>
               )}
             </div>
@@ -169,12 +205,24 @@ export default function BillingPage() {
                   </p>
                 </div>
               </div>
-              {subscription?.customer_portal_url && (
-                <Button variant="outline" size="sm" asChild>
-                  <a href={subscription.customer_portal_url} target="_blank" rel="noopener noreferrer">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Update
-                  </a>
+              {subscription && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/stripe/customer-portal", { method: "POST" });
+                      if (res.ok) {
+                        const { url } = await res.json();
+                        window.location.href = url;
+                      }
+                    } catch (error) {
+                      console.error("Portal error:", error);
+                    }
+                  }}
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Update
                 </Button>
               )}
             </div>

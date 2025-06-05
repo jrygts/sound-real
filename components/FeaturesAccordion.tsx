@@ -154,7 +154,7 @@ const Item = ({
         className={`transition-all duration-300 ease-in-out text-base-content-secondary overflow-hidden`}
         style={
           isOpen
-            ? { maxHeight: accordion?.current?.scrollHeight, opacity: 1 }
+            ? { maxHeight: accordion?.current?.scrollHeight || 'auto', opacity: 1 }
             : { maxHeight: 0, opacity: 0 }
         }
       >

@@ -28,7 +28,7 @@ const config = {
         // The price you want to display, the one user will be charged on Stripe.
         price: 6.99,
         // If you have an anchor price (i.e. $29) that you want to display crossed out, put it here. Otherwise, leave it empty
-        priceAnchor: null,
+        priceAnchor: undefined,
         features: [
           { name: "5,000 words per month" },
           { name: "Bypass all AI detectors (incl. Turnitin & GPTZero)" },
@@ -47,7 +47,7 @@ const config = {
         name: "Plus",
         description: "Most popular for serious content creators",
         price: 19.99,
-        priceAnchor: null,
+        priceAnchor: undefined,
         features: [
           { name: "15,000 words per month" },
           { name: "Everything in Basic PLUS:" },
@@ -64,7 +64,7 @@ const config = {
         name: "Pro",
         description: "For power users who need the best",
         price: 39.99,
-        priceAnchor: null,
+        priceAnchor: undefined,
         features: [
           { name: "30,000 words per month" },
           { name: "Everything in Plus PLUS:" },
