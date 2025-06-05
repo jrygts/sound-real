@@ -16,7 +16,8 @@ import {
   Download,
   Mail,
   Globe,
-  Palette
+  Palette,
+  CreditCard
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/libs/supabase/client"
@@ -29,12 +30,14 @@ export default function SettingsPage() {
   const [marketing, setMarketing] = useState(false)
   const [reports, setReports] = useState(true)
   const [twoFactor, setTwoFactor] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
     company: '',
     timezone: ''
   })
+  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null)
 
   const supabase = createClient()
   const router = useRouter()
@@ -60,6 +63,17 @@ export default function SettingsPage() {
       setMarketing(user.user_metadata?.marketing === true)
       setReports(user.user_metadata?.reports !== false)
       setTwoFactor(user.user_metadata?.two_factor === true)
+
+      // Load subscription info
+      try {
+        const response = await fetch('/api/subscription/status')
+        if (response.ok) {
+          const data = await response.json()
+          setSubscriptionInfo(data)
+        }
+      } catch (error) {
+        console.error('Error loading subscription info:', error)
+      }
       
       setLoading(false)
     }
@@ -100,6 +114,29 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Error updating preference:', error)
     }
+  }
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true)
+    try {
+      const response = await fetch('/api/stripe/create-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl: window.location.href })
+      })
+
+      if (response.ok) {
+        const { url } = await response.json()
+        window.location.href = url
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to access billing portal')
+      }
+    } catch (error) {
+      console.error('Billing portal error:', error)
+      alert('Failed to access billing portal. Please try again.')
+    }
+    setPortalLoading(false)
   }
 
   if (loading) {
@@ -385,6 +422,64 @@ export default function SettingsPage() {
               Delete Account
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Billing & Subscription */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Billing & Subscription
+          </CardTitle>
+          <CardDescription>
+            Manage your subscription and billing information.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {subscriptionInfo?.hasActiveSubscription ? (
+            <div className="p-4 border rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <Label>Current Plan</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {subscriptionInfo.plan_type || 'Active Subscription'}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleManageBilling}
+                  disabled={portalLoading}
+                >
+                  {portalLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Manage Subscription
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 border rounded-lg bg-muted/30">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <Label>No Active Subscription</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Upgrade to access premium features
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push('/pricing')}
+                >
+                  View Plans
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
