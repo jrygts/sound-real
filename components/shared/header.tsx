@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Logo } from "@/components/logo"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
 import GetStartedButton from "@/components/shared/GetStartedButton"
+import ProfileMenu from "@/components/shared/ProfileMenu"
 import { Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -50,6 +51,8 @@ export function AppHeader() {
           <div className="hidden md:inline-flex">
             {loading ? (
               <div className="w-16 h-8 bg-muted animate-pulse rounded"></div>
+            ) : user ? (
+              <ProfileMenu />
             ) : (
               <GetStartedButton />
             )}
@@ -75,6 +78,8 @@ export function AppHeader() {
                   <div className="w-full mt-4">
                     {loading ? (
                       <div className="w-full h-8 bg-muted animate-pulse rounded"></div>
+                    ) : user ? (
+                      <ProfileMenu />
                     ) : (
                       <GetStartedButton />
                     )}

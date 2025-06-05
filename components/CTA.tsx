@@ -1,7 +1,12 @@
+"use client";
 import Image from "next/image";
+import { useSession } from "@/components/SessionProvider";
+import ProfileMenu from "@/components/shared/ProfileMenu";
 import config from "@/config";
 
 const CTA = () => {
+  const { user, loading } = useSession();
+
   return (
     <section className="relative hero overflow-hidden min-h-screen">
       <Image
@@ -21,9 +26,15 @@ const CTA = () => {
             section...
           </p>
 
-          <button className="btn btn-primary btn-wide">
-            Get {config.appName}
-          </button>
+          {loading ? (
+            <div className="btn btn-primary btn-wide animate-pulse bg-gray-300"></div>
+          ) : user ? (
+            <ProfileMenu />
+          ) : (
+            <button className="btn btn-primary btn-wide">
+              Get {config.appName}
+            </button>
+          )}
         </div>
       </div>
     </section>

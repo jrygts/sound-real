@@ -129,8 +129,8 @@ export default function DashboardOverviewPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Transformations</CardTitle>
-            <CardDescription>Your transformation usage.</CardDescription>
+            <CardTitle className="text-lg">Humanizations</CardTitle>
+            <CardDescription>Your humanization usage.</CardDescription>
           </CardHeader>
           <CardContent>
             <Progress
@@ -184,8 +184,8 @@ export default function DashboardOverviewPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-xl">Recent Transformations</CardTitle>
-                <CardDescription>Your latest text transformations.</CardDescription>
+                <CardTitle className="text-xl">Recent Humanizations</CardTitle>
+                <CardDescription>Your latest text humanizations.</CardDescription>
               </div>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/dashboard/history">View All</Link>
@@ -203,7 +203,7 @@ export default function DashboardOverviewPage() {
                         <FileText className="h-5 w-5 text-muted-foreground" />
                         <div>
                           <p className="font-medium">
-                            {transform.original_text?.substring(0, 50) || 'Text transformation'}...
+                            {transform.original_text?.substring(0, 50) || 'Text humanization'}...
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(transform.created_at).toLocaleDateString()} · <span className="font-mono">{transform.word_count}</span> words
@@ -217,7 +217,7 @@ export default function DashboardOverviewPage() {
                   ))
                 ) : (
                   <li className="text-center py-4 text-muted-foreground">
-                    No transformations yet. <Link href="/" className="text-primary hover:underline">Create your first one!</Link>
+                    No humanizations yet. <Link href="/dashboard/humanize" className="text-primary hover:underline">Create your first one!</Link>
                   </li>
                 )}
               </ul>
@@ -231,8 +231,8 @@ export default function DashboardOverviewPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <GradientButton className="w-full justify-start" icon={<RefreshCw className="h-4 w-4" />} asChild>
-              <Link href="/">
-                New Transformation
+              <Link href="/dashboard/humanize">
+                New Humanize
               </Link>
             </GradientButton>
             <Button variant="outline" className="w-full justify-start">

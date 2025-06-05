@@ -65,9 +65,9 @@ export default function UsagePage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-heading font-semibold">Usage Analytics</h1>
-          <p className="text-muted-foreground">
-            Track your word consumption and transformation usage over time.
-          </p>
+                  <p className="text-muted-foreground">
+          Track your word consumption and humanization usage over time.
+        </p>
         </div>
         <div className="flex items-center justify-center py-8">Loading...</div>
       </div>
@@ -82,7 +82,7 @@ export default function UsagePage() {
       <div>
         <h1 className="text-3xl font-heading font-semibold">Usage Analytics</h1>
         <p className="text-muted-foreground">
-          Track your word consumption and transformation usage over time.
+          Track your word consumption and humanization usage over time.
         </p>
       </div>
 
@@ -104,7 +104,7 @@ export default function UsagePage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Transformations</CardTitle>
+            <CardTitle className="text-sm font-medium">Humanizations</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -144,7 +144,7 @@ export default function UsagePage() {
               }
             </div>
             <p className="text-xs text-muted-foreground">
-              words per transformation
+              words per humanization
             </p>
           </CardContent>
         </Card>
@@ -155,7 +155,7 @@ export default function UsagePage() {
         <CardHeader>
           <CardTitle>Daily Usage (Last 7 Days)</CardTitle>
           <CardDescription>
-            Your word and transformation usage over the past week.
+            Your word and humanization usage over the past week.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -166,7 +166,7 @@ export default function UsagePage() {
                   <div>
                     <p className="font-medium">{day.date}</p>
                     <p className="text-sm text-muted-foreground">
-                      {day.transformations} transformations
+                      {day.transformations} humanizations
                     </p>
                   </div>
                   <div className="text-right">
@@ -201,7 +201,7 @@ export default function UsagePage() {
             <div className="flex items-start space-x-3">
               <div className="w-2 h-2 bg-soundrealBlue rounded-full mt-2" />
               <div>
-                <p className="font-medium">Batch your transformations</p>
+                <p className="font-medium">Batch your humanizations</p>
                 <p className="text-sm text-muted-foreground">
                   Process multiple texts at once to maximize efficiency.
                 </p>
@@ -221,7 +221,7 @@ export default function UsagePage() {
               <div>
                 <p className="font-medium">Consider upgrading if needed</p>
                 <p className="text-sm text-muted-foreground">
-                  Higher tiers offer more words and transformations per month.
+                  Higher tiers offer more words and humanizations per month.
                 </p>
               </div>
             </div>

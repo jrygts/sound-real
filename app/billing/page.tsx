@@ -252,7 +252,7 @@ export default function BillingPage() {
                   <div>
                     <div className="flex justify-between text-sm text-slate-600 mb-2">
                       <span>
-                        {usageInfo.plan === 'Free' ? 'Transformations Used' : 'Words Used'}
+                        {usageInfo.plan === 'Free' ? 'Humanizations Used' : 'Words Used'}
                       </span>
                       <span>
                         {usageInfo.plan === 'Free' ? 
@@ -328,7 +328,7 @@ export default function BillingPage() {
                           <div className="text-xs text-slate-400">
                             <span className="inline-flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              Transformations reset daily at midnight
+                              Humanizations reset daily at midnight
                             </span>
                           </div>
                         </div>
@@ -345,9 +345,9 @@ export default function BillingPage() {
                           <div className="flex items-center gap-3">
                             <Zap className="w-5 h-5 text-yellow-600" />
                             <div>
-                              <h3 className="font-medium text-yellow-900">Running Low on Transformations</h3>
+                              <h3 className="font-medium text-yellow-900">Running Low on Humanizations</h3>
                               <p className="text-sm text-yellow-700">
-                                You have {usageInfo.remaining} transformation{usageInfo.remaining !== 1 ? 's' : ''} left today. 
+                                You have {usageInfo.remaining} humanization{usageInfo.remaining !== 1 ? 's' : ''} left today. 
                                 <button 
                                   onClick={() => router.push('/pricing')}
                                   className="text-yellow-800 underline ml-1 hover:text-yellow-900"
@@ -368,7 +368,7 @@ export default function BillingPage() {
                             <div>
                               <h3 className="font-medium text-red-900">Daily Limit Reached</h3>
                               <p className="text-sm text-red-700">
-                                You&apos;ve used all your free transformations for today. Your limit resets tomorrow at midnight.
+                                You&apos;ve used all your free humanizations for today. Your limit resets tomorrow at midnight.
                                 <button 
                                   onClick={() => router.push('/pricing')}
                                   className="text-red-800 underline ml-1 hover:text-red-900"
@@ -525,7 +525,7 @@ export default function BillingPage() {
                     </div>
                     <div>
                       <h3 className="font-medium text-blue-900">Free Plan</h3>
-                      <p className="text-sm text-blue-700">5 transformations per day</p>
+                      <p className="text-sm text-blue-700">5 humanizations per day</p>
                       <p className="text-xs text-blue-600 mt-1">Upgrade to get word-based billing</p>
                     </div>
                   </div>
@@ -555,7 +555,7 @@ export default function BillingPage() {
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>5 transformations/day</span>
+                    <span>5 humanizations/day</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />

@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ButtonSignin from "./ButtonSignin";
 import ButtonAccount from "./ButtonAccount";
+import ProfileMenu from "./shared/ProfileMenu";
 import logo from "@/app/icon.png";
 import config from "@/config";
 import { createClient } from "@/libs/supabase/client";
@@ -98,7 +99,7 @@ export default function Header() {
           <span className="loading loading-spinner loading-xs"></span>
         </div>
       ) : user ? (
-        <ButtonAccount />
+        <ProfileMenu />
       ) : (
         <ButtonSignin extraStyle="btn-primary" />
       )}
