@@ -1,19 +1,11 @@
 import { ReactNode } from "react";
-import { Inter } from "next/font/google";
 import { Viewport } from "next";
 import { getSEOTags } from "@/libs/seo";
 import ClientLayout from "@/components/LayoutClient";
-import dynamic from "next/dynamic";
-import Footer from "@/components/Footer";
 import config from "@/config";
+import { inter, calibre } from "@/lib/fonts";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
-
-const font = Inter({ subsets: ["latin"] });
-
-// Dynamic import for client-side Header component (using Header temporarily)
-const Header = dynamic(() => import("@/components/Header"), {
-	ssr: false,
-});
 
 export const viewport: Viewport = {
 	// Will use the primary color of your theme to show a nice theme color in the URL bar of supported browsers
@@ -30,18 +22,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html
 			lang="en"
-			data-theme={config.colors.theme}
-			className={font.className}
+			className={`${inter.variable} ${calibre.variable}`}
+			suppressHydrationWarning
 		>
-			<body>
-				{/* ClientLayout contains all the client wrappers (Crisp chat support, toast messages, tooltips, etc.) */}
-				<ClientLayout>
-					<Header />
-					<main className="min-h-screen">
+			<body className={inter.className}>
+				<ThemeProvider
+					attribute="class"
+					defaultTheme="system"
+					enableSystem
+					disableTransitionOnChange
+				>
+					{/* ClientLayout contains all the client wrappers (Crisp chat support, toast messages, tooltips, etc.) */}
+					<ClientLayout>
 						{children}
-					</main>
-					<Footer />
-				</ClientLayout>
+					</ClientLayout>
+				</ThemeProvider>
 			</body>
 		</html>
 	);

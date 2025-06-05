@@ -2,21 +2,122 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  scroll-behavior: smooth !important;
-}
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
-/* It makes the HTML progress bar filling smooth when value change. */
-progress::-webkit-progress-value {
-  transition: 0.6s width ease-out;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 245 100% 67%; /* #635BFF */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 27% 15%; /* #0A2540 */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 245 100% 67%; /* #635BFF for focus rings */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 210 27% 10%; /* Slightly lighter than deepNavy for main bg */
+    --foreground: 210 40% 98%;
+
+    --card: 210 27% 12%; /* Slightly lighter than deepNavy for cards */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 210 27% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 245 100% 67%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 245 100% 67%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 245 100% 77%; /* Lighter blue for dark mode rings */
+  }
 }
 
 @layer base {
-  .btn-gradient {
-    @apply !bg-gradient !bg-[length:300%_300%] hover:saturate-[1.2] shadow duration-100 !border-0 !border-transparent !bg-transparent animate-shimmer disabled:!bg-none disabled:!bg-gray-500/30  !text-white;
+  * {
+    @apply border-border;
   }
-  .btn {
-    @apply !capitalize;
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading text-secondary dark:text-slate-100;
+  }
+  .font-calibre {
+    /* For explicit Calibre usage if needed */
+    font-family: var(--font-calibre), var(--font-inter), sans-serif;
+  }
+  .section-divider::before {
+    content: "";
+    @apply block h-px bg-slate-200 dark:bg-slate-700 my-8;
+  }
+  .monospace-numbers {
+    @apply font-mono;
+  }
+  /* Reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Custom scrollbar for a more modern feel - optional */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-muted/50;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-soundrealBlue/70 rounded-lg;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-soundrealBlue;
 }

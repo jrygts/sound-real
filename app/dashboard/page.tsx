@@ -1,251 +1,215 @@
-'use client'
+"use client"
 
-import { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-import { useRouter } from 'next/navigation'
-import { FileText, Download, BarChart3, Copy, Crown } from 'lucide-react'
-import { isCurrentUserAdmin } from '@/libs/admin'
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { Button } from "@/components/ui/button"
+import { GradientButton } from "@/components/gradient-button"
+import { ArrowUpRight, FileText, RefreshCw } from "lucide-react"
+import Link from "next/link"
 
-export default function Dashboard() {
-  const [transformations, setTransformations] = useState<any[]>([])
-  const [stats, setStats] = useState({ today: 0, total: 0, saved: 0 })
-  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  const router = useRouter()
+// TODO: Replace with actual data from your API
+const usageStats = {
+  wordsUsed: 7850,
+  wordLimit: 15000,
+  transformationsUsed: 380,
+  transformationLimit: 600,
+  planName: "Plus",
+}
+
+const lastTransformations = [
+  { id: "1", title: "Blog Post Intro - Summer Trends", date: "2024-06-03", words: 150 },
+  { id: "2", title: "Email Campaign - New Product Launch", date: "2024-06-02", words: 250 },
+  { id: "3", title: "Social Media Ad Copy - Q3 Promo", date: "2024-06-01", words: 80 },
+  { id: "4", title: "Website Headline - About Us Page", date: "2024-05-30", words: 30 },
+  { id: "5", title: "Product Description - AI Assistant", date: "2024-05-29", words: 120 },
+]
+
+const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
+  const calculateTimeLeft = () => {
+    const difference = +targetDate - +new Date()
+    let timeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+
+    if (difference > 0) {
+      timeLeft = {
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60),
+      }
+    }
+    return timeLeft
+  }
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft())
 
   useEffect(() => {
-    loadDashboard()
-  }, [])
-
-  const loadDashboard = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      router.push('/signin')
-      return
-    }
-
-    // Check admin status
-    const adminStatus = await isCurrentUserAdmin()
-    setIsAdmin(adminStatus)
-
-    // Get subscription info
-    try {
-      const subscriptionResponse = await fetch('/api/subscription/status')
-      if (subscriptionResponse.ok) {
-        const subData = await subscriptionResponse.json()
-        setSubscriptionInfo(subData)
-      }
-    } catch (error) {
-      console.error('Failed to fetch subscription info:', error)
-    }
-
-    // Get transformations
-    const { data: transforms } = await supabase
-      .from('transformations')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10)
-
-    // Calculate stats
-    const { count: total } = await supabase
-      .from('transformations')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-
-    const { count: today } = await supabase
-      .from('transformations')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', new Date().toISOString().split('T')[0])
-
-    setTransformations(transforms || [])
-    setStats({ 
-      today: today || 0, 
-      total: total || 0, 
-      saved: (total || 0) * 5 // Assume 5 mins saved per transformation
-    })
-    setLoading(false)
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
+    const timer = setTimeout(() => {
+      setTimeLeft(calculateTimeLeft())
+    }, 1000)
+    return () => clearTimeout(timer)
+  })
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-            {isAdmin && (
-              <div className="flex items-center gap-2 mt-2">
-                <Crown className="w-4 h-4 text-purple-600" />
-                <span className="text-sm bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-medium">
-                  Admin Access - Unlimited Usage
-                </span>
-              </div>
-            )}
-          </div>
-          
-          {/* Subscription Status */}
-          <div className="text-right">
-            {subscriptionInfo?.isAdmin ? (
-              <div className="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg">
-                <p className="font-medium">🔧 Admin Account</p>
-                <p className="text-sm">Unlimited access</p>
-              </div>
-            ) : subscriptionInfo?.hasActiveSubscription ? (
-              <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg">
-                <p className="font-medium">✨ Pro Member</p>
-                <p className="text-sm">Unlimited transformations</p>
-              </div>
-            ) : (
-              <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg">
-                <p className="font-medium">Free Trial</p>
-                <button 
-                  onClick={() => router.push('/pricing')}
-                  className="text-sm underline hover:no-underline"
+    <div className="flex space-x-2 font-mono text-2xl md:text-3xl">
+      {Object.entries(timeLeft).map(([interval, value]) => (
+        <div key={interval} className="flex flex-col items-center">
+          <span className="font-bold">{String(value).padStart(2, "0")}</span>
+          <span className="text-xs text-muted-foreground uppercase">{interval}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export default function DashboardOverviewPage() {
+  const [wordProgress, setWordProgress] = useState(0)
+  const [transformProgress, setTransformProgress] = useState(0)
+
+  useEffect(() => {
+    // Animate progress bars on load
+    const timer = setTimeout(() => {
+      setWordProgress((usageStats.wordsUsed / usageStats.wordLimit) * 100)
+      setTransformProgress((usageStats.transformationsUsed / usageStats.transformationLimit) * 100)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const nextResetDate = new Date()
+  nextResetDate.setDate(nextResetDate.getDate() + 15) // Example: resets in 15 days
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-heading font-semibold">Dashboard Overview</h1>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Word Usage</CardTitle>
+            <CardDescription>Your monthly word consumption.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Progress
+              value={wordProgress}
+              className="h-3 mb-2 bg-slate-200 dark:bg-slate-700 [&>div]:bg-soundrealBlue"
+            />
+            <p className="text-sm text-muted-foreground">
+              <span className="font-mono font-semibold text-foreground dark:text-slate-100">
+                {usageStats.wordsUsed.toLocaleString()}
+              </span>{" "}
+              / {usageStats.wordLimit.toLocaleString()} words
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Transformations</CardTitle>
+            <CardDescription>Your transformation usage.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Progress
+              value={transformProgress}
+              className="h-3 mb-2 bg-slate-200 dark:bg-slate-700 [&>div]:bg-green-500"
+            />
+            <p className="text-sm text-muted-foreground">
+              <span className="font-mono font-semibold text-foreground dark:text-slate-100">
+                {usageStats.transformationsUsed.toLocaleString()}
+              </span>{" "}
+              / {usageStats.transformationLimit.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Next Usage Reset</CardTitle>
+            <CardDescription>Time until your limits refresh.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center py-6">
+            <CountdownTimer targetDate={nextResetDate} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          {usageStats.planName !== "Ultra" && (
+            <Card className="bg-gradient-to-r from-soundrealBlue to-blue-400 text-primary-foreground dark:from-soundrealBlue/80 dark:to-blue-400/80">
+              <CardHeader>
+                <CardTitle className="text-xl">Upgrade Your Plan</CardTitle>
+                <CardDescription className="text-blue-100 dark:text-blue-200">
+                  Unlock more words, unlimited transformations, and priority features.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <GradientButton
+                  variant="outline"
+                  size="lg"
+                  className="bg-white text-soundrealBlue hover:bg-slate-100 border-transparent"
+                  asChild
                 >
-                  Upgrade to Pro →
-                </button>
+                  <Link href="/pricing">
+                    View Upgrade Options <ArrowUpRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </GradientButton>
+              </CardContent>
+            </Card>
+          )}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl">Recent Transformations</CardTitle>
+                <CardDescription>Your latest five text transformations.</CardDescription>
               </div>
-            )}
-          </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/history">View All</Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                {lastTransformations.map((transform) => (
+                  <li
+                    key={transform.id}
+                    className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{transform.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {transform.date} · <span className="font-mono">{transform.words}</span> words
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      View
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm">Today</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.today}</p>
-              </div>
-              <FileText className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm">Total Transformations</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-              </div>
-              <BarChart3 className="w-8 h-8 text-green-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm">Time Saved</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.saved} mins</p>
-              </div>
-              <Download className="w-8 h-8 text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Action */}
-        <div className={`rounded-lg p-6 mb-8 text-center ${
-          isAdmin ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-blue-600'
-        }`}>
-          <h2 className="text-2xl font-bold text-white mb-2">
-            {isAdmin ? '🔧 Admin Mode - Transform Unlimited Text' : 'Ready to transform more text?'}
-          </h2>
-          <button
-            onClick={() => router.push('/')}
-            className="mt-4 px-6 py-3 bg-white rounded-lg font-medium hover:bg-blue-50"
-            style={{ color: isAdmin ? '#7c3aed' : '#2563eb' }}
-          >
-            New Transformation
-          </button>
-        </div>
-
-        {/* Recent Transformations */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-semibold text-slate-900">
-              Recent Transformations
-            </h2>
-          </div>
-          
-          <div className="divide-y">
-            {transformations.length > 0 ? transformations.map((t) => (
-              <div key={t.id} className="p-6 hover:bg-slate-50">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <p className="text-sm text-slate-600">
-                      {new Date(t.created_at).toLocaleDateString()} at{' '}
-                      {new Date(t.created_at).toLocaleTimeString()}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {t.word_count} words
-                    </p>
-                  </div>
-                  <div className="flex gap-2 text-sm">
-                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full">
-                      Before: {(t.ai_score_before * 100).toFixed(0)}%
-                    </span>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
-                      After: {(t.ai_score_after * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700 mb-1">Original</p>
-                    <p className="text-sm text-slate-600 line-clamp-2">
-                      {t.original_text}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-700 mb-1">Humanized</p>
-                    <p className="text-sm text-slate-600 line-clamp-2">
-                      {t.humanized_text}
-                    </p>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(t.humanized_text)
-                    alert('Copied!')
-                  }}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                >
-                  <Copy className="w-4 h-4" />
-                  Copy humanized text
-                </button>
-              </div>
-            )) : (
-              <div className="p-12 text-center">
-                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-900 mb-2">No transformations yet</h3>
-                <p className="text-slate-600 mb-4">Start transforming AI text to see your history here</p>
-                <button
-                  onClick={() => router.push('/')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Create First Transformation
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-xl">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <GradientButton className="w-full justify-start" icon={<RefreshCw className="h-4 w-4" />} asChild>
+              <Link href="/">
+                New Transformation
+              </Link>
+            </GradientButton>
+            <Button variant="outline" className="w-full justify-start">
+              Manage API Keys (Soon)
+            </Button>
+            <Button variant="outline" className="w-full justify-start">
+              View Documentation
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

@@ -1,9 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Zap, Shield, Clock } from 'lucide-react'
+import { ArrowRight, Zap, Shield, Clock, ArrowDown } from 'lucide-react'
 import PreviewModal from '@/components/PreviewModal'
+import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/logo"
+import { TrustBadge } from "@/components/trust-badge"
+import { GradientButton } from "@/components/gradient-button"
+import { FloatingLabelTextarea } from "@/components/floating-label-textarea"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { AppHeader } from "@/components/shared/header"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+
+const MAX_WORDS = 1000
 
 export default function Page() {
   const [text, setText] = useState('')
@@ -12,10 +23,25 @@ export default function Page() {
   const [error, setError] = useState('')
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
+  const [wordCount, setWordCount] = useState(0)
   const router = useRouter()
 
+  const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = event.target.value
+    setText(newText)
+    const words = newText.trim().split(/\s+/).filter(Boolean)
+    setWordCount(words.length)
+  }
+
   const handleTransform = async () => {
-    if (!text.trim()) return
+    if (wordCount === 0) {
+      toast.error("Please enter some text to transform.")
+      return
+    }
+    if (wordCount > MAX_WORDS) {
+      toast.error(`Text exceeds the ${MAX_WORDS}-word limit.`)
+      return
+    }
     
     setLoading(true)
     setError('')
@@ -77,6 +103,7 @@ export default function Page() {
             }
             
             setResult(data)
+            toast.success("Text transformed successfully!")
             
             // Log usage update if available
             if (data.usage) {
@@ -135,199 +162,203 @@ export default function Page() {
         }
       } catch {
         setError('Network error. Please check your connection and try again.')
+        toast.error('Network error. Please check your connection and try again.')
       }
     } finally {
       setLoading(false)
     }
   }
 
+  const scrollToPricing = () => {
+    router.push('/pricing')
+    toast.info("Navigating to pricing page...")
+  }
+
   return (
     <>
-      <main>
-        {/* Hero Section */}
-        <section className="bg-gradient-to-b from-slate-50 to-white">
-          <div className="max-w-6xl mx-auto px-4 py-16">
-            <div className="text-center">
-              <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
-                Make AI Text Sound
-                <span className="text-blue-600"> Real</span>
+      <div className="flex flex-col min-h-screen">
+        <AppHeader />
+        <main className="flex-grow">
+          {/* Hero Section */}
+          <section className="py-16 md:py-24 lg:py-32 bg-gradient-to-b from-background to-muted/30 dark:from-deepNavy/10 dark:to-background">
+            <div className="container px-4 md:px-6 text-center">
+              <Logo className="mx-auto mb-6 justify-center" size="lg" />
+              <h1 className="text-4xl font-heading sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6">
+                Make AI Text Sound <span className="text-soundrealBlue">Real</span>
               </h1>
-              <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
-                Transform AI-generated content into natural, human-sounding text that bypasses AI detectors
+              <p className="max-w-2xl mx-auto text-lg text-muted-foreground md:text-xl mb-8">
+                Transform AI-generated content into natural, human-like prose that bypasses detectors and engages readers.
               </p>
-              
-              {/* Trust badges */}
-              <div className="flex flex-wrap justify-center gap-6 mb-12">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-500" />
-                  <span className="text-slate-700">Instant Results</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-green-500" />
-                  <span className="text-slate-700">100% Undetectable</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-blue-500" />
-                  <span className="text-slate-700">Save Hours Daily</span>
-                </div>
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 mb-10">
+                <TrustBadge icon={<Zap className="h-4 w-4 text-soundrealBlue" />} text="Instant Results" />
+                <TrustBadge icon={<Shield className="h-4 w-4 text-soundrealBlue" />} text="100% Undetectable" />
+                <TrustBadge icon={<Clock className="h-4 w-4 text-soundrealBlue" />} text="Save Hours Daily" />
               </div>
-            </div>
 
-            {/* Main Interface */}
-            <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 md:p-8">
+              {/* Transformation Card */}
               {!result ? (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Paste your AI text below
-                    </label>
-                    <textarea
+                <Card className="max-w-2xl mx-auto shadow-soft-md dark:bg-card/70">
+                  <CardHeader>
+                    <CardTitle className="text-2xl font-heading">Transform Your Text</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <FloatingLabelTextarea
+                      label="Paste your AI-generated text here..."
                       value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      placeholder="Enter your ChatGPT, Claude, or any AI-generated text here..."
-                      className="w-full h-48 p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      onChange={handleTextChange}
+                      rows={8}
+                      maxLength={MAX_WORDS * 7} // Rough character estimate
+                      className="min-h-[150px] md:min-h-[200px]"
                     />
-                    <div className="mt-2 text-sm text-slate-500">
-                      {text.split(/\s+/).filter(Boolean).length} / 1000 words
+                    <div className="text-left text-sm text-muted-foreground mt-2">
+                      <span className={cn(wordCount > MAX_WORDS ? "text-destructive" : "")}>{wordCount}</span> / {MAX_WORDS}{" "}
+                      words
                     </div>
-                  </div>
-
-                  {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                      {error}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleTransform}
-                    disabled={!text.trim() || loading}
-                    className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      'Processing...'
-                    ) : (
-                      <>
-                        Transform Text
-                        <ArrowRight className="w-4 h-4" />
-                      </>
+                    {error && (
+                      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
+                        {error}
+                      </div>
                     )}
-                  </button>
-
-                  <p className="text-center text-sm text-slate-500 mt-4">
-                    ✨ Try it now • See instant preview • No signup required
-                  </p>
-                </>
+                  </CardContent>
+                  <CardFooter>
+                    <GradientButton
+                      onClick={handleTransform}
+                      isLoading={loading}
+                      className="w-full sm:w-auto sm:flex-1 py-3 text-base"
+                      icon={<ArrowRight className="h-5 w-5" />}
+                      iconPosition="right"
+                      aria-label="Transform text button"
+                    >
+                      Transform Text
+                    </GradientButton>
+                  </CardFooter>
+                </Card>
               ) : (
-                <div className="space-y-6">
-                  {/* Results Header */}
-                  <div className="text-center pb-6 border-b">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                      Transformation Complete!
-                    </h2>
+                <Card className="max-w-2xl mx-auto shadow-soft-md dark:bg-card/70">
+                  <CardHeader>
+                    <CardTitle className="text-2xl font-heading">Transformation Complete!</CardTitle>
                     <div className="flex justify-center gap-8 mt-4">
                       <div>
                         <div className="text-3xl font-bold text-red-600">
                           {(result.aiScoreBefore * 100).toFixed(0)}%
                         </div>
-                        <div className="text-sm text-slate-600">AI Score Before</div>
+                        <div className="text-sm text-muted-foreground">AI Score Before</div>
                       </div>
                       <div>
                         <div className="text-3xl font-bold text-green-600">
                           {(result.aiScoreAfter * 100).toFixed(0)}%
                         </div>
-                        <div className="text-sm text-slate-600">AI Score After</div>
+                        <div className="text-sm text-muted-foreground">AI Score After</div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Transformed Text */}
-                  <div>
-                    <h3 className="font-medium text-slate-900 mb-2">Your Humanized Text:</h3>
-                    <div className="bg-slate-50 p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap text-slate-700">
-                        {result.humanizedText}
-                      </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div>
+                      <h3 className="font-medium text-foreground mb-2">Your Humanized Text:</h3>
+                      <div className="bg-muted/50 p-4 rounded-lg">
+                        <p className="whitespace-pre-wrap text-left">
+                          {result.humanizedText}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
+                  </CardContent>
+                  <CardFooter className="grid grid-cols-2 gap-4">
+                    <Button
                       onClick={() => {
                         navigator.clipboard.writeText(result.humanizedText)
-                        alert('Copied!')
+                        toast.success('Text copied to clipboard!')
                       }}
-                      className="py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800"
+                      className="w-full"
                     >
                       Copy Text
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="outline"
                       onClick={() => {
                         setResult(null)
                         setText('')
+                        setWordCount(0)
+                        setError('')
                       }}
-                      className="py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+                      className="w-full"
                     >
                       Transform Another
-                    </button>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <p className="text-blue-900 mb-3">
-                      Get unlimited transformations and advanced features
-                    </p>
-                    <button
-                      onClick={() => router.push('/pricing')}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Upgrade to Pro →
-                    </button>
-                  </div>
-                </div>
+                    </Button>
+                  </CardFooter>
+                </Card>
               )}
-            </div>
-          </div>
-        </section>
 
-        {/* Features Section */}
-        <section className="py-20 bg-white">
-          <div className="max-w-6xl mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
-              Why Choose SoundReal?
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Zap className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Lightning Fast</h3>
-                <p className="text-slate-600">
-                  Get natural-sounding text in seconds, not hours of manual editing
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-8 h-8 text-green-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Bypass AI Detectors</h3>
-                <p className="text-slate-600">
-                  Our advanced algorithms ensure your text passes all major AI detection tools
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Clock className="w-8 h-8 text-purple-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Save Time</h3>
-                <p className="text-slate-600">
-                  Stop wasting hours trying to make AI text sound human manually
-                </p>
+              <div className="mt-16">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={scrollToPricing}
+                  className="rounded-full animate-bounce hover:animate-none"
+                  aria-label="Scroll to pricing section"
+                >
+                  <ArrowDown className="mr-2 h-5 w-5" />
+                  Explore Plans
+                </Button>
               </div>
             </div>
+          </section>
+
+          {/* Features Section */}
+          <section className="py-20 bg-muted/30 dark:bg-background">
+            <div className="container px-4 md:px-6">
+              <h2 className="text-3xl font-heading font-bold text-center mb-12">
+                Why Choose SoundReal?
+              </h2>
+              <div className="grid md:grid-cols-3 gap-8">
+                <Card className="text-center">
+                  <CardHeader>
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Zap className="w-8 h-8 text-soundrealBlue" />
+                    </div>
+                    <CardTitle>Lightning Fast</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      Get natural-sounding text in seconds, not hours of manual editing
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="text-center">
+                  <CardHeader>
+                    <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Shield className="w-8 h-8 text-green-600" />
+                    </div>
+                    <CardTitle>Bypass AI Detectors</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      Our advanced algorithms ensure your text passes all major AI detection tools
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="text-center">
+                  <CardHeader>
+                    <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Clock className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <CardTitle>Save Time</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      Stop wasting hours trying to make AI text sound human manually
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </section>
+        </main>
+        <footer className="py-8 border-t">
+          <div className="container text-center text-sm text-muted-foreground">
+            © {new Date().getFullYear()} SoundReal. All rights reserved.
           </div>
-        </section>
-      </main>
+        </footer>
+      </div>
 
       {/* Preview Modal */}
       {showPreviewModal && previewData && (
