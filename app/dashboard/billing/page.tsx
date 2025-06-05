@@ -142,7 +142,7 @@ export default function BillingPage() {
                 </>
               ) : (
                 <>
-                  <h3 className="font-semibold text-lg mb-2">Free Plan</h3>
+                  <h3 className="font-semibold text-lg mb-2">Free Trial</h3>
                   <p className="text-sm text-muted-foreground">You don&apos;t have an active subscription.</p>
                 </>
               )}

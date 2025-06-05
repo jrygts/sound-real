@@ -104,7 +104,7 @@ export default function BillingPage() {
   // Get plan configuration
   const getPlanConfig = (planType: string) => {
     const configs = {
-      'Free': { name: 'Free Plan', price: 0, color: 'slate', limit: '250 words/day' },
+              'Free': { name: 'Free Trial', price: 0, color: 'slate', limit: '250 words total' },
       'Basic': { name: 'Basic Plan', price: 6.99, color: 'blue', limit: '5,000 words/month' },
       'Plus': { name: 'Plus Plan', price: 19.99, color: 'green', limit: '15,000 words/month' },
       'Ultra': { name: 'Ultra Plan', price: 39.99, color: 'purple', limit: '35,000 words/month' }
@@ -251,12 +251,10 @@ export default function BillingPage() {
                   {/* Usage Bar */}
                   <div>
                     <div className="flex justify-between text-sm text-slate-600 mb-2">
-                      <span>
-                        {usageInfo.plan === 'Free' ? 'Humanizations Used' : 'Words Used'}
-                      </span>
+                      <span>Words Used</span>
                       <span>
                         {usageInfo.plan === 'Free' ? 
-                          `${usageInfo.totalUsed} of 5 daily` :
+                          `${usageInfo.words_used.toLocaleString()} of ${usageInfo.words_limit.toLocaleString()} total` :
                           `${usageInfo.words_used.toLocaleString()} of ${usageInfo.words_limit.toLocaleString()} monthly`
                         }
                       </span>
@@ -273,34 +271,27 @@ export default function BillingPage() {
                   <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-slate-900">
-                        {usageInfo.plan === 'Free' ? usageInfo.totalUsed : usageInfo.words_used.toLocaleString()}
+                        {usageInfo.words_used.toLocaleString()}
                       </div>
-                      <div className="text-sm text-slate-600">
-                        {usageInfo.plan === 'Free' ? 'Used' : 'Words Used'}
-                      </div>
+                      <div className="text-sm text-slate-600">Words Used</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {usageInfo.plan === 'Free' ? 
-                          usageInfo.remaining :
-                          usageInfo.words_remaining.toLocaleString()
-                        }
+                        {usageInfo.words_remaining.toLocaleString()}
                       </div>
-                      <div className="text-sm text-slate-600">
-                        {usageInfo.plan === 'Free' ? 'Remaining' : 'Words Left'}
-                      </div>
+                      <div className="text-sm text-slate-600">Words Left</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-600">{usageInfo.plan}</div>
-                      <div className="text-sm text-slate-600">Plan</div>
+                      <div className="text-sm text-slate-600">{usageInfo.plan === 'Free' ? 'Trial' : 'Plan'}</div>
                     </div>
                   </div>
 
                   {/* Reset Date */}
-                  {usageInfo.resetDate && (
+                  {usageInfo.resetDate && usageInfo.plan !== 'Free' && (
                     <div className="text-center pt-2 border-t">
                       <p className="text-sm text-slate-500">
-                        {usageInfo.plan === 'Free' ? 'Daily reset' : 'Monthly reset'}: {new Date(usageInfo.resetDate).toLocaleDateString()}
+                        Monthly reset: {new Date(usageInfo.resetDate).toLocaleDateString()}
                       </p>
                       
                       {/* 🚨 NEW: Billing Period Information */}
@@ -322,13 +313,13 @@ export default function BillingPage() {
                         </div>
                       )}
                       
-                      {/* Free plan daily reset info */}
+                      {/* Free trial info */}
                       {usageInfo.plan === 'Free' && (
                         <div className="mt-2 pt-2 border-t border-slate-100">
                           <div className="text-xs text-slate-400">
                             <span className="inline-flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              Humanizations reset daily at midnight
+                              Free trial: 250 words total (no resets)
                             </span>
                           </div>
                         </div>
@@ -345,14 +336,14 @@ export default function BillingPage() {
                           <div className="flex items-center gap-3">
                             <Zap className="w-5 h-5 text-yellow-600" />
                             <div>
-                              <h3 className="font-medium text-yellow-900">Running Low on Humanizations</h3>
+                              <h3 className="font-medium text-yellow-900">Running Low on Words</h3>
                               <p className="text-sm text-yellow-700">
-                                You have {usageInfo.remaining} humanization{usageInfo.remaining !== 1 ? 's' : ''} left today. 
+                                You have {usageInfo.remaining} words left in your free trial. 
                                 <button 
                                   onClick={() => router.push('/pricing')}
                                   className="text-yellow-800 underline ml-1 hover:text-yellow-900"
                                 >
-                                  Upgrade to get word-based billing
+                                  Upgrade to get monthly word allowances
                                 </button>
                               </p>
                             </div>
@@ -366,14 +357,14 @@ export default function BillingPage() {
                           <div className="flex items-center gap-3">
                             <XCircle className="w-5 h-5 text-red-600" />
                             <div>
-                              <h3 className="font-medium text-red-900">Daily Limit Reached</h3>
+                              <h3 className="font-medium text-red-900">Free Trial Exhausted</h3>
                               <p className="text-sm text-red-700">
-                                You&apos;ve used all your free humanizations for today. Your limit resets tomorrow at midnight.
+                                You&apos;ve used all 250 words from your free trial. 
                                 <button 
                                   onClick={() => router.push('/pricing')}
                                   className="text-red-800 underline ml-1 hover:text-red-900"
                                 >
-                                  Upgrade for word-based billing
+                                  Upgrade for monthly word allowances
                                 </button>
                               </p>
                             </div>
@@ -524,9 +515,9 @@ export default function BillingPage() {
                       <span className="text-blue-600 text-sm font-medium">F</span>
                     </div>
                     <div>
-                      <h3 className="font-medium text-blue-900">Free Plan</h3>
-                      <p className="text-sm text-blue-700">5 humanizations per day</p>
-                      <p className="text-xs text-blue-600 mt-1">Upgrade to get word-based billing</p>
+                      <h3 className="font-medium text-blue-900">Free Trial</h3>
+                      <p className="text-sm text-blue-700">250 words total</p>
+                      <p className="text-xs text-blue-600 mt-1">Upgrade to get monthly word allowances</p>
                     </div>
                   </div>
                   <button
@@ -548,14 +539,14 @@ export default function BillingPage() {
             <h2 className="text-xl font-semibold text-slate-900 mb-6">Plan Features</h2>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Free Plan */}
+              {/* Free Trial */}
               <div className="border rounded-lg p-4">
-                <h3 className="font-medium text-slate-900 mb-3">Free Plan</h3>
-                <div className="text-sm text-slate-600 mb-3">$0/month</div>
+                <h3 className="font-medium text-slate-900 mb-3">Free Trial</h3>
+                <div className="text-sm text-slate-600 mb-3">$0 (one-time)</div>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>5 humanizations/day</span>
+                    <span>250 words total</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
@@ -563,7 +554,7 @@ export default function BillingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <XCircle className="w-4 h-4 text-red-500" />
-                    <span>No word-based billing</span>
+                    <span>No recurring allowance</span>
                   </li>
                 </ul>
               </div>

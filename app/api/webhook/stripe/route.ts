@@ -377,7 +377,7 @@ async function handleSubscriptionDeleted(event: Stripe.Event): Promise<void> {
     throw new Error('Failed to handle subscription cancellation');
   }
   
-  console.log(`❌ [Webhook] Subscription canceled, reverted to Free plan (usage preserved until daily reset)`);
+          console.log(`❌ [Webhook] Subscription canceled, reverted to Free trial (250 words total)`);
 }
 
 // Enhanced webhook handler with comprehensive debugging

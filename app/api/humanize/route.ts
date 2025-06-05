@@ -101,7 +101,7 @@ export async function POST(request: Request) {
               return NextResponse.json(
                 { 
                   error: "WORD_LIMIT_EXCEEDED",
-                  message: "Free plan daily limit reached (250 words/day). Upgrade for higher monthly limits.",
+                  message: "Free trial limit reached (250 words total). Upgrade for monthly word allowances.",
                   usage: usage,
                   upgradeUrl: "/billing"
                 },

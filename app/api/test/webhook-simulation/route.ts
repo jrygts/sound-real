@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         
         updateData = {
           plan_type: customData?.plan || 'Basic',
-          words_limit: customData?.wordsLimit || 5000,
+                      words_limit: customData?.wordsLimit || 5000,
           transformations_limit: customData?.transformationsLimit || 200,
           words_used: 0,
           transformations_used: 0,
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString()
           // Note: NOT resetting words_used - let it carry over until daily reset
         };
-        resultMessage = `Subscription canceled, reverted to Free plan, usage preserved until daily reset`;
+                  resultMessage = `Subscription canceled, reverted to Free trial (250 words total)`;
         console.log(`🧪 [Test] Simulating subscription cancellation for user ${userId}`);
         break;
         
@@ -266,7 +266,7 @@ export async function GET() {
           },
           {
             name: 'subscription_cancellation', 
-            description: 'Simulate subscription cancellation - should revert to Free plan, preserve usage',
+            description: 'Simulate subscription cancellation - should revert to Free trial (250 words)',
             customData: 'none'
           }
         ]

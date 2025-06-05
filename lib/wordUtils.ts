@@ -36,10 +36,10 @@ export const PLAN_CONFIGS = {
   'Free': {
     plan_type: 'Free',
     words_limit: 250,
-    transformations_limit: 5, // 5 transformations per day for Free  
+    transformations_limit: 5, // Keep for backward compatibility
     price: 0,
-    name: 'Free Plan',
-    billing_period: 'daily'
+    name: 'Free Trial',
+    billing_period: 'lifetime' // One-time limit, no resets
   },
   'Basic': {
     plan_type: 'Basic',
@@ -220,7 +220,7 @@ export function canProcessWords(
       return {
         canProcess: false,
         wordsRemaining,
-        reason: `Daily word limit reached. You've used ${wordsUsed}/${wordsLimit} words today. Upgrade for higher limits or wait until tomorrow.`
+        reason: `Free trial limit reached. You've used ${wordsUsed}/${wordsLimit} words. Upgrade to continue with monthly word allowances.`
       };
     }
     
@@ -242,12 +242,10 @@ export function getNextResetDate(planType: string, periodStartDate?: Date): Date
   const config = getPlanConfig(planType);
   const now = new Date();
   
-  if (config.billing_period === 'daily') {
-    // Free plan resets daily at midnight
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    return tomorrow;
+  if (config.billing_period === 'lifetime') {
+    // Free plan never resets - return a far future date
+    const neverReset = new Date('2099-12-31');
+    return neverReset;
   } else {
     // Paid plans reset monthly from subscription start date
     if (!periodStartDate) {
@@ -287,7 +285,7 @@ export function formatWordUsage(
   const percentage = wordsLimit > 0 ? Math.round((wordsUsed / wordsLimit) * 100) : 0;
   
   if (planType === 'Free') {
-    return `${wordsUsed.toLocaleString()} / ${wordsLimit.toLocaleString()} words used today (${percentage}%) - ${wordsRemaining.toLocaleString()} remaining`;
+    return `${wordsUsed.toLocaleString()} / ${wordsLimit.toLocaleString()} words used (${percentage}%) - ${wordsRemaining.toLocaleString()} free trial words remaining`;
   }
   
   return `${wordsUsed.toLocaleString()} / ${wordsLimit.toLocaleString()} words used (${percentage}%) - ${wordsRemaining.toLocaleString()} remaining`;
@@ -372,7 +370,7 @@ export function getWordLimitExceededMessage(
   const config = getPlanConfig(planType);
   
   if (planType === 'Free') {
-    return `You need ${wordsNeeded.toLocaleString()} words but only have ${wordsRemaining.toLocaleString()} remaining today. Your Free plan includes ${config.words_limit} words per day. Upgrade to Basic plan (${PLAN_CONFIGS.Basic.words_limit.toLocaleString()} words/month) for higher limits.`;
+    return `You need ${wordsNeeded.toLocaleString()} words but only have ${wordsRemaining.toLocaleString()} remaining in your free trial (${config.words_limit} words total). Upgrade to Basic plan (${PLAN_CONFIGS.Basic.words_limit.toLocaleString()} words/month) to continue.`;
   }
 
   return `You need ${wordsNeeded.toLocaleString()} words but only have ${wordsRemaining.toLocaleString()} remaining in your ${config.name}. Please upgrade your plan or wait for your next billing period.`;
@@ -388,15 +386,9 @@ export function needsBillingReset(
   const now = new Date();
   const lastReset = new Date(lastResetDate);
   
-  if (config.billing_period === 'daily') {
-    // Free plan resets daily
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
-    
-    const resetDay = new Date(lastReset);
-    resetDay.setHours(0, 0, 0, 0);
-    
-    return today > resetDay;
+  if (config.billing_period === 'lifetime') {
+    // Free plan never resets
+    return false;
   } else {
     // Paid plans reset monthly
     const nextReset = getNextResetDate(planType, periodStartDate ? new Date(periodStartDate) : undefined);
