@@ -5,7 +5,8 @@ import OpenAI from "openai";
 import { isUserAdmin } from "@/libs/admin";
 import { countWords, validateWordCount } from "@/lib/wordUtils";
 import { cleanMarkdownForHumanization } from "@/libs/textProcessing";
-import { postProcess } from "@/src/lib/postProcessor";
+// TODO: Implement postProcessor in Phase 2
+// import { postProcess } from "@/libs/postProcessor";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -196,11 +197,12 @@ Return only the rewritten text, no explanations.`;
 
     // Apply post-processor with random seed for additional humanization
     console.log(`🔧 [Transform] Applying post-processor`);
-    const humanizedText = postProcess(baselineRewrite);
+    // TODO: Implement postProcessor in Phase 2 - for now, using baseline rewrite as final output
+    const humanizedText = baselineRewrite;
     
-    // Mock AI detection scores for MVP (will be replaced with real GPTZero API)
-    const aiScoreBefore = 0.87; // Mock: 87% AI-generated before
-    const aiScoreAfter = 0.48;  // Mock: 48% AI-generated after (below 65% target)
+    // TODO: Replace in Phase 2 - Mock AI detection scores for MVP (will be replaced with real GPTZero API)
+    const mockScoreBefore = 0.87; // Mock: 87% AI-generated before
+    const mockScoreAfter = 0.48;  // Mock: 48% AI-generated after (below 65% target)
     
     console.log(`✅ [Transform] Post-processing completed successfully`);
 
@@ -212,8 +214,8 @@ Return only the rewritten text, no explanations.`;
           user_id: user.id,
           original_text: text, // Keep original with markdown for reference
           humanized_text: humanizedText,
-          ai_score_before: aiScoreBefore,
-          ai_score_after: aiScoreAfter,
+          ai_score_before: mockScoreBefore,
+          ai_score_after: mockScoreAfter,
           word_count: wordsToProcess,
         });
         console.log('💾 [Transform] Transformation saved to database');
@@ -244,8 +246,8 @@ Return only the rewritten text, no explanations.`;
               return NextResponse.json({
                 success: true,
                 humanizedText,
-                aiScoreBefore,
-                aiScoreAfter,
+                aiScoreBefore: mockScoreBefore,
+                aiScoreAfter: mockScoreAfter,
                 wordCount: wordsToProcess,
                 usage: updatedUsageData.usage
               });
@@ -275,8 +277,8 @@ Return only the rewritten text, no explanations.`;
     return NextResponse.json({
       success: true,
       humanizedText,
-      aiScoreBefore,
-      aiScoreAfter,
+      aiScoreBefore: mockScoreBefore,
+      aiScoreAfter: mockScoreAfter,
       wordCount: wordsToProcess,
     });
     

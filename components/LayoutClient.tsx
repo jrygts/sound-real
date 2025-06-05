@@ -16,7 +16,7 @@ const CrispChat = (): null => {
   const pathname = usePathname();
 
   const supabase = createClient();
-  const [data, setData] = useState<{ user: User }>(null);
+  const [data, setData] = useState<{ user: User } | null>(null);
 
   // This is used to get the user data from Supabase Auth (if logged in) => user ID is used to identify users in Crisp
   useEffect(() => {

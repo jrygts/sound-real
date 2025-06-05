@@ -7,23 +7,7 @@ import { Button } from "@/components/ui/button"
 import { GradientButton } from "@/components/gradient-button"
 import { ArrowUpRight, FileText, RefreshCw } from "lucide-react"
 import Link from "next/link"
-
-// TODO: Replace with actual data from your API
-const usageStats = {
-  wordsUsed: 7850,
-  wordLimit: 15000,
-  transformationsUsed: 380,
-  transformationLimit: 600,
-  planName: "Plus",
-}
-
-const lastTransformations = [
-  { id: "1", title: "Blog Post Intro - Summer Trends", date: "2024-06-03", words: 150 },
-  { id: "2", title: "Email Campaign - New Product Launch", date: "2024-06-02", words: 250 },
-  { id: "3", title: "Social Media Ad Copy - Q3 Promo", date: "2024-06-01", words: 80 },
-  { id: "4", title: "Website Headline - About Us Page", date: "2024-05-30", words: 30 },
-  { id: "5", title: "Product Description - AI Assistant", date: "2024-05-29", words: 120 },
-]
+import { createClient } from "@/libs/supabase/client"
 
 const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
   const calculateTimeLeft = () => {
@@ -65,18 +49,59 @@ const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
 export default function DashboardOverviewPage() {
   const [wordProgress, setWordProgress] = useState(0)
   const [transformProgress, setTransformProgress] = useState(0)
+  const [usage, setUsage] = useState<any>(null)
+  const [recentTransformations, setRecentTransformations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const supabase = createClient()
 
   useEffect(() => {
-    // Animate progress bars on load
-    const timer = setTimeout(() => {
-      setWordProgress((usageStats.wordsUsed / usageStats.wordLimit) * 100)
-      setTransformProgress((usageStats.transformationsUsed / usageStats.transformationLimit) * 100)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [])
+    const fetchData = async () => {
+      try {
+        // Fetch usage data
+        const usageResponse = await fetch('/api/subscription/usage')
+        if (usageResponse.ok) {
+          const usageData = await usageResponse.json()
+          setUsage(usageData.usage)
+          
+          // Animate progress bars based on real data
+          setTimeout(() => {
+            setWordProgress((usageData.usage.words_used / usageData.usage.words_limit) * 100)
+            setTransformProgress((usageData.usage.transformations_used / usageData.usage.transformations_limit) * 100)
+          }, 300)
+        }
 
+        // Fetch recent transformations
+        const { data: transformations } = await supabase
+          .from('transformations')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (transformations) {
+          setRecentTransformations(transformations)
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [supabase])
+
+  // Calculate next reset date (assuming monthly billing cycle)
   const nextResetDate = new Date()
-  nextResetDate.setDate(nextResetDate.getDate() + 15) // Example: resets in 15 days
+  nextResetDate.setMonth(nextResetDate.getMonth() + 1)
+  nextResetDate.setDate(1) // First day of next month
+
+  if (loading) {
+    return <div className="space-y-6">
+      <h1 className="text-3xl font-heading font-semibold">Dashboard Overview</h1>
+      <div className="flex items-center justify-center py-8">Loading...</div>
+    </div>
+  }
 
   return (
     <div className="space-y-6">
@@ -95,9 +120,9 @@ export default function DashboardOverviewPage() {
             />
             <p className="text-sm text-muted-foreground">
               <span className="font-mono font-semibold text-foreground dark:text-slate-100">
-                {usageStats.wordsUsed.toLocaleString()}
+                {usage?.words_used?.toLocaleString() || 0}
               </span>{" "}
-              / {usageStats.wordLimit.toLocaleString()} words
+              / {usage?.words_limit?.toLocaleString() || 0} words
             </p>
           </CardContent>
         </Card>
@@ -114,9 +139,9 @@ export default function DashboardOverviewPage() {
             />
             <p className="text-sm text-muted-foreground">
               <span className="font-mono font-semibold text-foreground dark:text-slate-100">
-                {usageStats.transformationsUsed.toLocaleString()}
+                {usage?.transformations_used?.toLocaleString() || 0}
               </span>{" "}
-              / {usageStats.transformationLimit.toLocaleString()}
+              / {usage?.transformations_limit?.toLocaleString() || 0}
             </p>
           </CardContent>
         </Card>
@@ -134,7 +159,7 @@ export default function DashboardOverviewPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {usageStats.planName !== "Ultra" && (
+          {usage?.plan !== "Ultra" && (
             <Card className="bg-gradient-to-r from-soundrealBlue to-blue-400 text-primary-foreground dark:from-soundrealBlue/80 dark:to-blue-400/80">
               <CardHeader>
                 <CardTitle className="text-xl">Upgrade Your Plan</CardTitle>
@@ -160,7 +185,7 @@ export default function DashboardOverviewPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-xl">Recent Transformations</CardTitle>
-                <CardDescription>Your latest five text transformations.</CardDescription>
+                <CardDescription>Your latest text transformations.</CardDescription>
               </div>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/dashboard/history">View All</Link>
@@ -168,25 +193,33 @@ export default function DashboardOverviewPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
-                {lastTransformations.map((transform) => (
-                  <li
-                    key={transform.id}
-                    className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{transform.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {transform.date} · <span className="font-mono">{transform.words}</span> words
-                        </p>
+                {recentTransformations.length > 0 ? (
+                  recentTransformations.map((transform) => (
+                    <li
+                      key={transform.id}
+                      className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">
+                            {transform.original_text?.substring(0, 50) || 'Text transformation'}...
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(transform.created_at).toLocaleDateString()} · <span className="font-mono">{transform.word_count}</span> words
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
+                      <Button variant="ghost" size="sm">
+                        View
+                      </Button>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-center py-4 text-muted-foreground">
+                    No transformations yet. <Link href="/" className="text-primary hover:underline">Create your first one!</Link>
                   </li>
-                ))}
+                )}
               </ul>
             </CardContent>
           </Card>

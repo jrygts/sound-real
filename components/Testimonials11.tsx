@@ -183,7 +183,7 @@ const Testimonial = ({ i }: { i: number }) => {
             {testimonial.img ? (
               <Image
                 className="w-10 h-10 rounded-full object-cover"
-                src={list[i].img}
+                src={list[i].img || ''}
                 alt={`${list[i].name}'s testimonial for ${config.appName}`}
                 width={48}
                 height={48}
@@ -402,7 +402,7 @@ const Testimonials11 = () => {
                       {list[list.length - 1].img ? (
                         <Image
                           className="w-12 h-12 rounded-full object-cover"
-                          src={list[list.length - 1].img}
+                          src={list[list.length - 1].img || ''}
                           alt={`${
                             list[list.length - 1].name
                           }'s testimonial for ${config.appName}`}

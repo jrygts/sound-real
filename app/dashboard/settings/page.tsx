@@ -19,35 +19,103 @@ import {
   Globe,
   Palette
 } from "lucide-react"
-import { useState } from "react"
-
-// TODO: Replace with actual data from your API
-const settingsData = {
-  profile: {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    company: "Acme Corp",
-    timezone: "America/New_York",
-  },
-  preferences: {
-    emailNotifications: true,
-    marketingEmails: false,
-    weeklyReports: true,
-    darkMode: false,
-    language: "en",
-  },
-  security: {
-    twoFactorEnabled: false,
-    lastPasswordChange: "2024-10-15",
-    activeSessions: 3,
-  }
-}
+import { useState, useEffect } from "react"
+import { createClient } from "@/libs/supabase/client"
+import { useRouter } from "next/navigation"
 
 export default function SettingsPage() {
-  const [notifications, setNotifications] = useState(settingsData.preferences.emailNotifications)
-  const [marketing, setMarketing] = useState(settingsData.preferences.marketingEmails)
-  const [reports, setReports] = useState(settingsData.preferences.weeklyReports)
-  const [twoFactor, setTwoFactor] = useState(settingsData.security.twoFactorEnabled)
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState(true)
+  const [marketing, setMarketing] = useState(false)
+  const [reports, setReports] = useState(true)
+  const [twoFactor, setTwoFactor] = useState(false)
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    company: '',
+    timezone: ''
+  })
+
+  const supabase = createClient()
+  const router = useRouter()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/auth')
+        return
+      }
+      
+      setUser(user)
+      setProfileData({
+        name: user.user_metadata?.full_name || '',
+        email: user.email || '',
+        company: user.user_metadata?.company || '',
+        timezone: user.user_metadata?.timezone || 'America/New_York'
+      })
+      
+      // Load user preferences (you might want to store these in a separate table)
+      setNotifications(user.user_metadata?.notifications !== false)
+      setMarketing(user.user_metadata?.marketing === true)
+      setReports(user.user_metadata?.reports !== false)
+      setTwoFactor(user.user_metadata?.two_factor === true)
+      
+      setLoading(false)
+    }
+
+    getUser()
+  }, [supabase.auth, router])
+
+  const handleProfileUpdate = async () => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          full_name: profileData.name,
+          company: profileData.company,
+          timezone: profileData.timezone,
+        }
+      })
+
+      if (error) throw error
+      
+      // Show success message (you might want to add a toast notification)
+      alert('Profile updated successfully!')
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      alert('Failed to update profile. Please try again.')
+    }
+  }
+
+  const handlePreferenceUpdate = async (preference: string, value: boolean) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ...user.user_metadata,
+          [preference]: value
+        }
+      })
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating preference:', error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-heading font-semibold">Account Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your account preferences, security settings, and integrations.
+          </p>
+        </div>
+        <div className="flex items-center justify-center py-8">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -73,7 +141,12 @@ export default function SettingsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="Enter your full name" defaultValue={settingsData.profile.name} />
+              <Input 
+                id="name" 
+                placeholder="Enter your full name" 
+                value={profileData.name}
+                onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
@@ -81,15 +154,19 @@ export default function SettingsPage() {
                 id="email" 
                 type="email" 
                 placeholder="Enter your email" 
-                defaultValue={settingsData.profile.email} 
+                value={profileData.email}
+                disabled
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground">Email cannot be changed here. Contact support if needed.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company">Company (Optional)</Label>
               <Input 
                 id="company" 
                 placeholder="Enter your company name" 
-                defaultValue={settingsData.profile.company} 
+                value={profileData.company}
+                onChange={(e) => setProfileData(prev => ({ ...prev, company: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
@@ -97,14 +174,22 @@ export default function SettingsPage() {
               <Input 
                 id="timezone" 
                 placeholder="Your timezone" 
-                defaultValue={settingsData.profile.timezone} 
+                value={profileData.timezone}
+                onChange={(e) => setProfileData(prev => ({ ...prev, timezone: e.target.value }))}
               />
             </div>
           </div>
           <Separator />
           <div className="flex justify-end space-x-2">
-            <Button variant="outline">Cancel</Button>
-            <Button>Save Changes</Button>
+            <Button variant="outline" onClick={() => {
+              setProfileData({
+                name: user.user_metadata?.full_name || '',
+                email: user.email || '',
+                company: user.user_metadata?.company || '',
+                timezone: user.user_metadata?.timezone || 'America/New_York'
+              })
+            }}>Cancel</Button>
+            <Button onClick={handleProfileUpdate}>Save Changes</Button>
           </div>
         </CardContent>
       </Card>
@@ -131,7 +216,10 @@ export default function SettingsPage() {
             <Switch 
               id="email-notifications"
               checked={notifications}
-              onCheckedChange={setNotifications}
+              onCheckedChange={(checked) => {
+                setNotifications(checked)
+                handlePreferenceUpdate('notifications', checked)
+              }}
             />
           </div>
           
@@ -145,7 +233,10 @@ export default function SettingsPage() {
             <Switch 
               id="marketing-emails"
               checked={marketing}
-              onCheckedChange={setMarketing}
+              onCheckedChange={(checked) => {
+                setMarketing(checked)
+                handlePreferenceUpdate('marketing', checked)
+              }}
             />
           </div>
           
@@ -159,7 +250,10 @@ export default function SettingsPage() {
             <Switch 
               id="weekly-reports"
               checked={reports}
-              onCheckedChange={setReports}
+              onCheckedChange={(checked) => {
+                setReports(checked)
+                handlePreferenceUpdate('reports', checked)
+              }}
             />
           </div>
         </CardContent>
@@ -189,7 +283,10 @@ export default function SettingsPage() {
               <Switch 
                 id="two-factor"
                 checked={twoFactor}
-                onCheckedChange={setTwoFactor}
+                onCheckedChange={(checked) => {
+                  setTwoFactor(checked)
+                  handlePreferenceUpdate('two_factor', checked)
+                }}
               />
             </div>
           </div>
@@ -201,7 +298,7 @@ export default function SettingsPage() {
               <div>
                 <Label>Password</Label>
                 <p className="text-sm text-muted-foreground">
-                  Last changed on {new Date(settingsData.security.lastPasswordChange).toLocaleDateString()}
+                  Last changed: {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Unknown'}
                 </p>
               </div>
               <Button variant="outline" size="sm">
@@ -214,7 +311,7 @@ export default function SettingsPage() {
               <div>
                 <Label>Active Sessions</Label>
                 <p className="text-sm text-muted-foreground">
-                  You have {settingsData.security.activeSessions} active sessions
+                  Manage your active login sessions
                 </p>
               </div>
               <Button variant="outline" size="sm">

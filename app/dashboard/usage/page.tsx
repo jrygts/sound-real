@@ -1,31 +1,81 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { BarChart3, TrendingUp, Calendar, FileText } from "lucide-react"
-
-// TODO: Replace with actual data from your API
-const usageData = {
-  currentPeriod: {
-    wordsUsed: 7850,
-    wordLimit: 15000,
-    transformationsUsed: 380,
-    transformationLimit: 600,
-  },
-  dailyUsage: [
-    { date: "Dec 1", words: 450, transformations: 12 },
-    { date: "Dec 2", words: 320, transformations: 8 },
-    { date: "Dec 3", words: 680, transformations: 15 },
-    { date: "Dec 4", words: 290, transformations: 7 },
-    { date: "Dec 5", words: 520, transformations: 11 },
-    { date: "Dec 6", words: 380, transformations: 9 },
-    { date: "Dec 7", words: 430, transformations: 13 },
-  ]
-}
+import { createClient } from "@/libs/supabase/client"
 
 export default function UsagePage() {
-  const wordProgress = (usageData.currentPeriod.wordsUsed / usageData.currentPeriod.wordLimit) * 100
-  const transformProgress = (usageData.currentPeriod.transformationsUsed / usageData.currentPeriod.transformationLimit) * 100
+  const [usage, setUsage] = useState<any>(null)
+  const [dailyUsage, setDailyUsage] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const supabase = createClient()
+
+  useEffect(() => {
+    const fetchUsageData = async () => {
+      try {
+        // Fetch current usage
+        const usageResponse = await fetch('/api/subscription/usage')
+        if (usageResponse.ok) {
+          const usageData = await usageResponse.json()
+          setUsage(usageData.usage)
+        }
+
+        // Fetch daily usage from transformations table
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+        const { data: transformations } = await supabase
+          .from('transformations')
+          .select('created_at, word_count')
+          .gte('created_at', sevenDaysAgo.toISOString())
+          .order('created_at', { ascending: true })
+
+        if (transformations) {
+          // Group by day
+          const dailyData = transformations.reduce((acc: any, transform: any) => {
+            const date = new Date(transform.created_at).toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric' 
+            })
+            if (!acc[date]) {
+              acc[date] = { date, words: 0, transformations: 0 }
+            }
+            acc[date].words += transform.word_count || 0
+            acc[date].transformations += 1
+            return acc
+          }, {})
+
+          setDailyUsage(Object.values(dailyData))
+        }
+      } catch (error) {
+        console.error('Failed to fetch usage data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUsageData()
+  }, [supabase])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-heading font-semibold">Usage Analytics</h1>
+          <p className="text-muted-foreground">
+            Track your word consumption and transformation usage over time.
+          </p>
+        </div>
+        <div className="flex items-center justify-center py-8">Loading...</div>
+      </div>
+    )
+  }
+
+  const wordProgress = usage ? (usage.words_used / usage.words_limit) * 100 : 0
+  const transformProgress = usage ? (usage.transformations_used / usage.transformations_limit) * 100 : 0
 
   return (
     <div className="space-y-6">
@@ -44,10 +94,10 @@ export default function UsagePage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageData.currentPeriod.wordsUsed.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{usage?.words_used?.toLocaleString() || 0}</div>
             <Progress value={wordProgress} className="mt-2 h-2" />
             <p className="text-xs text-muted-foreground mt-1">
-              {usageData.currentPeriod.wordLimit.toLocaleString()} limit
+              {usage?.words_limit?.toLocaleString() || 0} limit
             </p>
           </CardContent>
         </Card>
@@ -58,10 +108,10 @@ export default function UsagePage() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageData.currentPeriod.transformationsUsed}</div>
+            <div className="text-2xl font-bold">{usage?.transformations_used || 0}</div>
             <Progress value={transformProgress} className="mt-2 h-2" />
             <p className="text-xs text-muted-foreground mt-1">
-              {usageData.currentPeriod.transformationLimit} limit
+              {usage?.transformations_limit || 0} limit
             </p>
           </CardContent>
         </Card>
@@ -73,7 +123,7 @@ export default function UsagePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(usageData.currentPeriod.wordsUsed / 30).toLocaleString()}
+              {usage ? Math.round(usage.words_used / 30).toLocaleString() : 0}
             </div>
             <p className="text-xs text-muted-foreground">
               words per day
@@ -88,7 +138,10 @@ export default function UsagePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(usageData.currentPeriod.wordsUsed / usageData.currentPeriod.transformationsUsed)}
+              {usage && usage.transformations_used > 0 
+                ? Math.round(usage.words_used / usage.transformations_used)
+                : 0
+              }
             </div>
             <p className="text-xs text-muted-foreground">
               words per transformation
@@ -107,25 +160,31 @@ export default function UsagePage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {usageData.dailyUsage.map((day, index) => (
-              <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                <div>
-                  <p className="font-medium">{day.date}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {day.transformations} transformations
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">{day.words} words</p>
-                  <div className="w-24 h-2 bg-muted rounded-full mt-1">
-                    <div 
-                      className="h-full bg-soundrealBlue rounded-full"
-                      style={{ width: `${(day.words / 800) * 100}%` }}
-                    />
+            {dailyUsage.length > 0 ? (
+              dailyUsage.map((day: any, index: number) => (
+                <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <p className="font-medium">{day.date}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {day.transformations} transformations
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold">{day.words} words</p>
+                    <div className="w-24 h-2 bg-muted rounded-full mt-1">
+                      <div 
+                        className="h-full bg-soundrealBlue rounded-full"
+                        style={{ width: `${Math.min((day.words / 1000) * 100, 100)}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No usage data for the past 7 days.
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

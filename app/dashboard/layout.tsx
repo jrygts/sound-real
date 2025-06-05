@@ -18,7 +18,9 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { LayoutDashboard, BarChart3, CreditCard, Settings, LogOut, ChevronDown, Menu, X } from "lucide-react"
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/libs/supabase/client"
+import { useRouter } from "next/navigation"
 
 const sidebarNavItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -33,10 +35,56 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [usage, setUsage] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  // TODO: Replace with actual user data from your auth system
-  const user = { name: "John Doe", email: "john.doe@example.com", plan: "Plus", wordsLeft: 12345 }
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/auth')
+        return
+      }
+      setUser(user)
+
+      // Fetch usage data
+      try {
+        const response = await fetch('/api/subscription/usage')
+        if (response.ok) {
+          const usageData = await response.json()
+          setUsage(usageData.usage)
+        }
+      } catch (error) {
+        console.error('Failed to fetch usage:', error)
+      }
+      
+      setLoading(false)
+    }
+
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        router.push('/auth')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth, router])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  if (loading) {
+    return <div className="min-h-screen w-full flex items-center justify-center">Loading...</div>
+  }
 
   return (
     <div className="min-h-screen w-full flex bg-muted/40 dark:bg-deepNavy/20">
@@ -95,10 +143,12 @@ export default function DashboardLayout({
           </Button>
 
           <div className="flex-1">
-            {/* Plan Pill - could be more dynamic */}
-            <Badge variant="outline" className="border-soundrealBlue text-soundrealBlue">
-              {user.plan} Plan · <span className="font-mono ml-1">{user.wordsLeft.toLocaleString()}</span> words left
-            </Badge>
+            {/* Plan Pill - now using real data */}
+            {usage && (
+              <Badge variant="outline" className="border-soundrealBlue text-soundrealBlue">
+                {usage.plan} Plan · <span className="font-mono ml-1">{usage.words_remaining?.toLocaleString() || 0}</span> words left
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -107,18 +157,18 @@ export default function DashboardLayout({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-auto px-2 flex items-center gap-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/diverse-avatars.png" alt={user.name} />
-                    <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarImage src="/diverse-avatars.png" alt={user?.user_metadata?.full_name || user?.email || 'User'} />
+                    <AvatarFallback>{(user?.user_metadata?.full_name || user?.email || 'U').substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden sm:inline">{user.name}</span>
+                  <span className="hidden sm:inline">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:inline" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -133,7 +183,7 @@ export default function DashboardLayout({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Log out
                 </DropdownMenuItem>

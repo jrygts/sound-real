@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 const ButtonAccount = () => {
   const supabase = createClient();
   const router = useRouter();
-  const [user, setUser] = useState<User>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const getUser = async () => {

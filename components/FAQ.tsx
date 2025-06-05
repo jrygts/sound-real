@@ -34,7 +34,7 @@ const faqList: FAQItemProps[] = [
 ];
 
 const FaqItem = ({ item }: { item: FAQItemProps }) => {
-  const accordion = useRef(null);
+  const accordion = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   return (
