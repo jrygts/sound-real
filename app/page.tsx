@@ -304,7 +304,7 @@ export default function Page() {
           </section>
 
           {/* Features Section */}
-          <section className="py-20 bg-muted/30 dark:bg-background">
+          <section id="features" className="py-20 bg-muted/30 dark:bg-background scroll-mt-24">
             <div className="container px-4 md:px-6">
               <h2 className="text-3xl font-heading font-bold text-center mb-12">
                 Why Choose SoundReal?

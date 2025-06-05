@@ -7,9 +7,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 
 const navItems = [
-  { href: "/#features", label: "Features" }, // Assuming features section on landing
+  { href: "/#features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/blog", label: "Blog" }, // Example
 ]
 
 export function AppHeader() {

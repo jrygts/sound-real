@@ -86,8 +86,8 @@ export default function Header() {
       ]
     : [
         { href: '/', label: 'Home' },
+        { href: '/#features', label: 'Features' },
         { href: '/pricing', label: 'Pricing' },
-        { href: '/blog', label: 'Blog' },
       ];
 
   // Improved CTA rendering - show sign in button immediately if no user, even during loading
