@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { RefreshCw, Copy, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
+import { LimitReachedModal } from "@/components/ui/LimitReachedModal"
 
 export const dynamic = "force-dynamic"
 
@@ -15,6 +16,8 @@ export default function HumanizePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [copied, setCopied] = useState(false)
+  const [limitModalOpen, setLimitModalOpen] = useState(false)
+  const [wordsRemaining, setWordsRemaining] = useState<number>(0)
 
   const wordCount = text.split(/\s+/).filter(Boolean).length
 
@@ -31,6 +34,15 @@ export default function HumanizePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       })
+
+      if (res.status === 403) {
+        const data = await res.json()
+        if (data.error === "limit-reached") {
+          setWordsRemaining(data.words_remaining ?? 0)
+          setLimitModalOpen(true)
+          return
+        }
+      }
 
       if (!res.ok) {
         const errorData = await res.json()
@@ -74,6 +86,11 @@ export default function HumanizePage() {
 
   return (
     <div className="space-y-6">
+      <LimitReachedModal
+        open={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        wordsRemaining={wordsRemaining}
+      />
       <div>
         <h1 className="text-3xl font-heading font-semibold">Humanize Text</h1>
         <p className="text-muted-foreground">Transform AI-generated content into natural, human-like prose.</p>

@@ -13,6 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { AppHeader } from "@/components/shared/header"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { LimitReachedModal } from "@/components/ui/LimitReachedModal"
 
 const MAX_WORDS = 1000
 
@@ -24,6 +25,8 @@ export default function LandingPageContent() {
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
   const [wordCount, setWordCount] = useState(0)
+  const [limitModalOpen, setLimitModalOpen] = useState(false)
+  const [wordsRemaining, setWordsRemaining] = useState<number>(0)
   const router = useRouter()
 
   const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -81,6 +84,15 @@ export default function LandingPageContent() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ text }),
             })
+
+            if (response.status === 403) {
+              const data = await response.json()
+              if (data.error === "limit-reached") {
+                setWordsRemaining(data.words_remaining ?? 0)
+                setLimitModalOpen(true)
+                return
+              }
+            }
             
             const data = await response.json()
             
@@ -359,6 +371,13 @@ export default function LandingPageContent() {
           </div>
         </footer>
       </div>
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        open={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        wordsRemaining={wordsRemaining}
+      />
 
       {/* Preview Modal */}
       {showPreviewModal && previewData && (
