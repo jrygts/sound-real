@@ -10,7 +10,7 @@ export default async function AuthPage() {
   const supabase = createClient();
   
   const { data: { user } } = await supabase.auth.getUser();
-  if (user) redirect("/dashboard");
+  if (user) redirect("/auth/post-login");
 
   return (
     <MarketingLayout>

@@ -255,14 +255,14 @@ async function updateSubscriptionData(
   });
 }
 
-// Handle new subscriptions - always reset usage
+// Handle new subscriptions - preserve usage for existing customers
 async function handleSubscriptionCreated(event: Stripe.Event): Promise<void> {
   const subscription = event.data.object as Stripe.Subscription;
   logEventDetails(event, 'NEW SUBSCRIPTION CREATED');
   
   await updateSubscriptionData(
     subscription, 
-    true, // Reset usage for new subscription
+    false, // ✅ preserve usage - this could be a plan change via subscription recreation
     'New subscription created'
     // Note: No userId passed here since this event doesn't contain client_reference_id
     // Will fall back to finding by stripe_customer_id
@@ -304,23 +304,14 @@ async function handleSubscriptionUpdated(event: Stripe.Event): Promise<void> {
   let reason = '';
   
   if (periodActuallyChanged && !hasPlanChange) {
-    // Billing period changed but no plan change = renewal
+    // ✅ billing-cycle rollover → reset
     shouldResetUsage = true;
     reason = 'Billing period renewal detected';
-  } else if (hasPlanChange && !periodActuallyChanged) {
-    // Plan changed but same billing period = upgrade/downgrade
+  } else if (hasPlanChange) {
+    // ✅ any upgrade/downgrade, keep usage
     shouldResetUsage = false;
     reason = 'Plan change mid-cycle detected';
-  } else if (hasPlanChange && periodActuallyChanged) {
-    // Both changed - likely plan change at billing boundary
-    shouldResetUsage = true;
-    reason = 'Plan change at billing renewal';
-  } else if (hasStatusChange) {
-    // Status change (activation, pause, etc.)
-    shouldResetUsage = false;
-    reason = 'Subscription status change';
   } else {
-    // Other subscription update - preserve usage by default
     shouldResetUsage = false;
     reason = 'General subscription update';
   }
@@ -487,8 +478,8 @@ export async function POST(req: NextRequest) {
           
           await updateSubscriptionData(
             subscription,
-            true, // Reset usage for new subscription from checkout
-            'New subscription from checkout',
+            false, // ✅ keep usage when user buys new plan mid-cycle
+            'Plan purchased via checkout',
             userId  // 🚨 NEW: Pass the user ID from checkout session
           );
         }

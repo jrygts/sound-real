@@ -38,7 +38,12 @@ export default function HumanizePage() {
       }
 
       const data = await res.json()
-      setResult(data)
+      // Map the API response to match the expected format
+      setResult({
+        transformed: data.humanizedText,
+        aiScoreBefore: data.aiScoreBefore,
+        aiScoreAfter: data.aiScoreAfter
+      })
       toast.success("Text humanized successfully!")
     } catch (error: any) {
       console.error("Humanize error:", error)

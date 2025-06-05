@@ -302,7 +302,7 @@ Return only the rewritten text, no explanations.`;
     }
     
     return NextResponse.json(
-      { error: "Failed to transform text. Please try again." },
+      { error: "Failed to humanize text. Please try again." },
       { status: 500 }
     );
   }

@@ -87,7 +87,7 @@ const PreviewModal = ({
               <p className="text-slate-700 leading-relaxed mb-3">{preview}</p>
               <div className="border-t pt-3">
                 <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
-                  <span>Transformation Progress</span>
+                  <span>Humanization Progress</span>
                   <span>{previewLength} / {fullTextLength} characters</span>
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-2">

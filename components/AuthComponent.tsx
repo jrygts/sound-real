@@ -12,7 +12,7 @@ export default function AuthComponent() {
       supabaseClient={supabase}
       magicLink
       providers={["google"]}
-      redirectTo="/dashboard"
+      redirectTo="/auth/post-login"
       appearance={{
         theme: ThemeSupa,
         variables: { default: { colors: { brand: "#635BFF" } } },

@@ -35,7 +35,7 @@ export default function LandingPageContent() {
 
   const handleTransform = async () => {
     if (wordCount === 0) {
-      toast.error("Please enter some text to transform.")
+      toast.error("Please enter some text to humanize.")
       return
     }
     if (wordCount > MAX_WORDS) {
@@ -65,7 +65,7 @@ export default function LandingPageContent() {
           setShowPreviewModal(true)
         } else {
           // Fallback to pricing if preview fails
-          router.push('/pricing?intent=transform')
+          router.push('/pricing?intent=humanize')
         }
       } else {
         // Check subscription status for authenticated users
@@ -93,7 +93,7 @@ export default function LandingPageContent() {
               }
               
               if (data.error === 'TRANSFORMATION_LIMIT_EXCEEDED') {
-                setError(data.message || 'Daily transformation limit reached. Please upgrade to a paid plan.')
+                setError(data.message || 'Daily humanization limit reached. Please upgrade to a paid plan.')
                 router.push('/billing')
                 return
               }
@@ -103,7 +103,7 @@ export default function LandingPageContent() {
             }
             
             setResult(data)
-            toast.success("Text transformed successfully!")
+            toast.success("Text humanized successfully!")
             
             // Log usage update if available
             if (data.usage) {
@@ -123,7 +123,7 @@ export default function LandingPageContent() {
               setPreviewData({ ...preview, isAuthenticated: true })
               setShowPreviewModal(true)
             } else {
-              router.push('/pricing?intent=transform&authenticated=true')
+              router.push('/pricing?intent=humanize&authenticated=true')
             }
           }
         } else {
@@ -139,7 +139,7 @@ export default function LandingPageContent() {
             setPreviewData({ ...preview, isAuthenticated: true })
             setShowPreviewModal(true)
           } else {
-            router.push('/pricing?intent=transform')
+            router.push('/pricing?intent=humanize')
           }
         }
       }
@@ -158,7 +158,7 @@ export default function LandingPageContent() {
           setPreviewData(preview)
           setShowPreviewModal(true)
         } else {
-          router.push('/pricing?intent=transform')
+          router.push('/pricing?intent=humanize')
         }
       } catch {
         setError('Network error. Please check your connection and try again.')
@@ -199,7 +199,7 @@ export default function LandingPageContent() {
               {!result ? (
                 <Card className="max-w-2xl mx-auto shadow-soft-md dark:bg-card/70">
                   <CardHeader>
-                    <CardTitle className="text-2xl font-heading">Transform Your Text</CardTitle>
+                    <CardTitle className="text-2xl font-heading">Humanize Your Text</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <FloatingLabelTextarea
@@ -227,16 +227,16 @@ export default function LandingPageContent() {
                       className="w-full sm:w-auto sm:flex-1 py-3 text-base"
                       icon={<ArrowRight className="h-5 w-5" />}
                       iconPosition="right"
-                      aria-label="Transform text button"
+                      aria-label="Humanize text button"
                     >
-                      Transform Text
+                      Humanize Text
                     </GradientButton>
                   </CardFooter>
                 </Card>
               ) : (
                 <Card className="max-w-2xl mx-auto shadow-soft-md dark:bg-card/70">
                   <CardHeader>
-                    <CardTitle className="text-2xl font-heading">Transformation Complete!</CardTitle>
+                    <CardTitle className="text-2xl font-heading">Humanization Complete!</CardTitle>
                     <div className="flex justify-center gap-8 mt-4">
                       <div>
                         <div className="text-3xl font-bold text-red-600">
@@ -282,7 +282,7 @@ export default function LandingPageContent() {
                       }}
                       className="w-full"
                     >
-                      Transform Another
+                      Humanize Another
                     </Button>
                   </CardFooter>
                 </Card>
