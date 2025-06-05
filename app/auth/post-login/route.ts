@@ -1,25 +1,59 @@
 import { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/libs/supabase/server";
+import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
   const supabase = createClient();
   
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
+  /* ----------------------------------------------------------
+   * Exchange the `?code` query param for a session cookie once.
+   * This sets `sb-access-token` + `sb-refresh-token` cookies on
+   * the response and populates `session`.
+   * --------------------------------------------------------- */
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+
+  if (!code) {
+    console.error("📥 [post-login] No code parameter found");
     redirect("/");
-    return;
   }
 
-  const { data: profile } = await supabase
+  const { data: exchangeData, error: exchangeError } =
+    await supabase.auth.exchangeCodeForSession(code);
+
+  if (exchangeError) {
+    console.error("📥 [post-login] exchange error", exchangeError);
+    redirect("/"); // fallback
+  }
+
+  const session = exchangeData.session;
+
+  console.log("📥 [post-login] session after exchange", { session });
+  console.log(
+    "📥 [post-login] request headers host",
+    request.headers.get("host"),
+    "cookie:",
+    cookies().getAll().find((c) => c.name === "sb-access-token")
+  );
+
+  if (!session) {
+    console.log("📥 [post-login] No session → redirect /");
+    redirect("/");
+  }
+
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("has_access")
     .eq("id", session.user.id)
     .single();
 
-  if (profile?.has_access) {
-    redirect("/dashboard/humanize");
-  } else {
-    redirect("/pricing");
-  }
+  console.log("📥 [post-login] profile row", { profile, profileError });
+
+  const dest = profile?.has_access
+    ? "/dashboard/humanize"
+    : "/pricing";
+
+  console.log("📥 [post-login] redirecting to", dest);
+  redirect(dest);
 } 

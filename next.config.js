@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const SITE = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -9,6 +11,9 @@ const nextConfig = {
       "images.unsplash.com",
       "logos-world.net",
     ],
+  },
+  env: { 
+    NEXT_PUBLIC_SITE_URL: SITE 
   },
 };
 
