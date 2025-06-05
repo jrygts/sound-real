@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         console.log(`🧪 [Test] Simulating plan change for user ${userId} - preserving ${currentProfile.words_used} words used`);
         break;
         
-      case 'billing_renewal_reset_usage':
+      case 'billing_renewal_reset_usage': {
         // Simulate billing period renewal - should reset usage
         const currentPeriodStart = new Date();
         const currentPeriodEnd = new Date();
@@ -73,8 +73,9 @@ export async function POST(request: NextRequest) {
         resultMessage = `Billing cycle renewed, usage reset from ${currentProfile.words_used} to 0`;
         console.log(`🧪 [Test] Simulating billing renewal for user ${userId} - resetting usage`);
         break;
+      }
         
-      case 'new_subscription':
+      case 'new_subscription': {
         // Simulate new subscription - should reset usage and set plan
         const newPeriodStart = new Date();
         const newPeriodEnd = new Date();
@@ -96,8 +97,9 @@ export async function POST(request: NextRequest) {
         resultMessage = `New subscription created for ${updateData.plan_type} plan`;
         console.log(`🧪 [Test] Simulating new subscription for user ${userId}`);
         break;
+      }
 
-      case 'plan_change_at_billing_boundary':
+      case 'plan_change_at_billing_boundary': {
         // Simulate plan change that happens at billing renewal - should reset usage
         const boundaryPeriodStart = new Date();
         const boundaryPeriodEnd = new Date();
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest) {
         resultMessage = `Plan changed at billing boundary, usage reset and new billing period started`;
         console.log(`🧪 [Test] Simulating plan change at billing boundary for user ${userId}`);
         break;
+      }
 
       case 'subscription_cancellation':
         // Simulate subscription cancellation - revert to Free, preserve usage until daily reset

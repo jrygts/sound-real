@@ -122,10 +122,23 @@ async function detectBillingPeriodChange(subscription: Stripe.Subscription, cust
 async function updateSubscriptionData(
   subscription: Stripe.Subscription, 
   resetUsage: boolean, 
-  reason: string
+  reason: string,
+  userId?: string  // 🚨 NEW: Accept userId parameter from checkout
 ): Promise<void> {
   const customerId = subscription.customer as string;
   const priceId = subscription.items.data[0]?.price.id;
+  
+  // 🚨 NEW: Try to get userId from multiple sources
+  const targetUserId = userId  // From checkout session
+                    || subscription.metadata?.supabase_uid  // From subscription metadata
+                    || null;
+
+  console.log(`🔍 [Webhook] Resolving user for subscription update:`, {
+    customerId,
+    priceId,
+    targetUserId,
+    reason
+  });
   
   const planConfig = PLAN_CONFIGS[priceId];
   if (!planConfig) {
@@ -133,6 +146,49 @@ async function updateSubscriptionData(
     return;
   }
 
+  // 🚨 NEW LOGIC: Find profile by userId first, then backfill customer ID
+  let profileId = null;
+  let needsCustomerId = false;
+
+  if (targetUserId) {
+    // 1️⃣ Try to find profile by Supabase UUID (most reliable)
+    const { data: profileByUid, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, stripe_customer_id")
+      .eq("id", targetUserId)
+      .single();
+
+    if (profileError) {
+      console.error(`❌ [Webhook] Failed to find profile by UUID ${targetUserId}:`, profileError);
+    } else if (profileByUid) {
+      profileId = profileByUid.id;
+      needsCustomerId = !profileByUid.stripe_customer_id;
+      console.log(`✅ [Webhook] Found profile by UUID: ${profileId}, needs customer ID: ${needsCustomerId}`);
+    }
+  }
+
+  if (!profileId) {
+    // 2️⃣ Fallback: Try to find by stripe_customer_id (for existing users)
+    const { data: profileByCustomerId, error: customerError } = await supabase
+      .from("profiles")
+      .select("id, stripe_customer_id")
+      .eq("stripe_customer_id", customerId)
+      .single();
+
+    if (customerError) {
+      console.error(`❌ [Webhook] Failed to find profile by customer ID ${customerId}:`, customerError);
+      throw new Error(`No profile found for customer ${customerId} or user ${targetUserId}`);
+    } else if (profileByCustomerId) {
+      profileId = profileByCustomerId.id;
+      console.log(`✅ [Webhook] Found profile by customer ID: ${profileId}`);
+    }
+  }
+
+  if (!profileId) {
+    throw new Error(`No profile found for customer ${customerId} or user ${targetUserId}`);
+  }
+
+  // 3️⃣ Build update payload
   const updateData: any = {
     plan_type: planConfig.plan_type,
     words_limit: planConfig.words_limit,
@@ -149,6 +205,12 @@ async function updateSubscriptionData(
     updateData.price_id = priceId;
   }
 
+  // 🚨 NEW: Backfill stripe_customer_id if needed
+  if (needsCustomerId) {
+    updateData.stripe_customer_id = customerId;
+    console.log(`🔧 [Webhook] Backfilling stripe_customer_id: ${customerId}`);
+  }
+
   // 🚨 CRITICAL: Only reset usage if explicitly requested
   if (resetUsage) {
     updateData.words_used = 0;
@@ -160,19 +222,22 @@ async function updateSubscriptionData(
   }
 
   console.log(`📝 [Webhook] Update data:`, {
+    profileId,
     customerId,
     planType: planConfig.plan_type,
     wordsLimit: planConfig.words_limit,
     subscriptionStatus: subscription.status,
     resetUsage,
-    reason
+    reason,
+    backfillingCustomerId: needsCustomerId
   });
 
+  // 4️⃣ Update by profile ID (not customer ID)
   const { data: updatedProfile, error } = await supabase
     .from('profiles')
     .update(updateData)
-    .eq('stripe_customer_id', customerId)
-    .select('id, plan_type, words_used, words_limit')
+    .eq('id', profileId)  // 🚨 FIXED: Update by profile ID, not customer ID
+    .select('id, plan_type, words_used, words_limit, stripe_customer_id')
     .single();
 
   if (error) {
@@ -185,6 +250,7 @@ async function updateSubscriptionData(
     planType: updatedProfile?.plan_type,
     wordsUsed: updatedProfile?.words_used,
     wordsLimit: updatedProfile?.words_limit,
+    stripeCustomerId: updatedProfile?.stripe_customer_id,
     usageAction: resetUsage ? 'RESET' : 'PRESERVED'
   });
 }
@@ -198,6 +264,8 @@ async function handleSubscriptionCreated(event: Stripe.Event): Promise<void> {
     subscription, 
     true, // Reset usage for new subscription
     'New subscription created'
+    // Note: No userId passed here since this event doesn't contain client_reference_id
+    // Will fall back to finding by stripe_customer_id
   );
 }
 
@@ -283,6 +351,7 @@ async function handleInvoicePaymentSucceeded(event: Stripe.Event): Promise<void>
         subscription, 
         true, // Reset usage for billing cycle
         'Invoice payment succeeded - billing cycle'
+        // Note: No userId available from invoice events
       );
     } catch (error) {
       console.error('❌ [Webhook] Failed to retrieve subscription for invoice:', error);
@@ -380,7 +449,7 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
-      case "checkout.session.completed":
+      case "checkout.session.completed": {
         console.log(`💳 [Webhook] Processing checkout.session.completed`);
         
         const stripeObject: Stripe.Checkout.Session = event.data
@@ -405,6 +474,11 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "No customer ID" }, { status: 400 });
         }
 
+        if (!userId) {
+          console.error(`💳 [Webhook] ❌ No client_reference_id (user ID) found in session`);
+          return NextResponse.json({ error: "No user ID found in checkout session" }, { status: 400 });
+        }
+
         // Get subscription details
         let subscriptionId = null;
         if (session?.mode === 'subscription' && session?.subscription) {
@@ -414,10 +488,12 @@ export async function POST(req: NextRequest) {
           await updateSubscriptionData(
             subscription,
             true, // Reset usage for new subscription from checkout
-            'New subscription from checkout'
+            'New subscription from checkout',
+            userId  // 🚨 NEW: Pass the user ID from checkout session
           );
         }
         break;
+      }
 
       case "customer.subscription.created":
         await handleSubscriptionCreated(event);
@@ -435,7 +511,7 @@ export async function POST(req: NextRequest) {
         await handleSubscriptionDeleted(event);
         break;
 
-      case "invoice.payment_failed":
+      case "invoice.payment_failed": {
         const failedInvoice = event.data.object as Stripe.Invoice;
         
         const { error: failedError } = await supabase
@@ -451,6 +527,7 @@ export async function POST(req: NextRequest) {
           console.log(`⚠️ [Webhook] Updated subscription to past_due status`);
         }
         break;
+      }
         
       default:
         console.log(`ℹ️ [Webhook] Unhandled event type: ${event.type}`);
