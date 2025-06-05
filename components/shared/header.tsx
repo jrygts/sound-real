@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { Logo } from "@/components/logo"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
@@ -5,6 +7,7 @@ import GetStartedButton from "@/components/shared/GetStartedButton"
 import { Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import { useSession } from "@/components/SessionProvider"
 
 const navItems = [
   { href: "/#features", label: "Features" },
@@ -12,6 +15,21 @@ const navItems = [
 ]
 
 export function AppHeader() {
+  // Safely get session with fallback
+  let user = null
+  let loading = true
+  
+  try {
+    const session = useSession()
+    user = session.user
+    loading = session.loading
+  } catch (error) {
+    // Fallback if session provider is not available
+    console.warn('Session provider not available:', error)
+    loading = false
+    user = null
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
@@ -30,7 +48,11 @@ export function AppHeader() {
         <div className="flex items-center space-x-2">
           <ThemeToggleButton />
           <div className="hidden md:inline-flex">
-            <GetStartedButton />
+            {loading ? (
+              <div className="w-16 h-8 bg-muted animate-pulse rounded"></div>
+            ) : (
+              <GetStartedButton />
+            )}
           </div>
           <div className="md:hidden">
             <Sheet>
@@ -51,7 +73,11 @@ export function AppHeader() {
                     </Link>
                   ))}
                   <div className="w-full mt-4">
-                    <GetStartedButton />
+                    {loading ? (
+                      <div className="w-full h-8 bg-muted animate-pulse rounded"></div>
+                    ) : (
+                      <GetStartedButton />
+                    )}
                   </div>
                 </nav>
               </SheetContent>

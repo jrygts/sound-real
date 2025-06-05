@@ -1,46 +1,24 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/libs/supabase/client";
+import { useSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/button";
 
-export default function GetStartedButton() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
+export default function GetStartedButton({ size = "sm" }: { size?: "sm" | "lg" }) {
+  const { user } = useSession();
   const router = useRouter();
-  const supabase = createClient();
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setAuthChecked(true);
-    };
-
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null);
-      setAuthChecked(true);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
-
-  async function handleClick() {
-    if (loading) return;
-    setLoading(true);
-    router.push(user ? "/dashboard" : "/signin");
-  }
-
-  // Don't show loading on initial render, only show it during click action
   return (
     <Button
       variant="default"
-      size="sm"
-      onClick={handleClick}
-      disabled={loading || !authChecked}
+      size={size}
+      disabled={loading}
+      onClick={() => {
+        if (loading) return;
+        setLoading(true);
+        router.push(user ? "/dashboard" : "/auth");
+      }}
     >
       {loading ? "Loading…" : "Get Started"}
     </Button>
