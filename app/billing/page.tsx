@@ -104,7 +104,7 @@ export default function BillingPage() {
   // Get plan configuration
   const getPlanConfig = (planType: string) => {
     const configs = {
-      'Free': { name: 'Free Plan', price: 0, color: 'slate', limit: '5 daily transformations' },
+      'Free': { name: 'Free Plan', price: 0, color: 'slate', limit: '250 words/day' },
       'Basic': { name: 'Basic Plan', price: 6.99, color: 'blue', limit: '5,000 words/month' },
       'Plus': { name: 'Plus Plan', price: 19.99, color: 'green', limit: '15,000 words/month' },
       'Ultra': { name: 'Ultra Plan', price: 39.99, color: 'purple', limit: '35,000 words/month' }

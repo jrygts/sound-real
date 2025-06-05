@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
         // Simulate subscription cancellation - revert to Free, preserve usage until daily reset
         updateData = {
           plan_type: 'Free',
-          words_limit: 0,
+          words_limit: 250,
           transformations_limit: 5,
           stripe_subscription_status: 'canceled',
           stripe_subscription_id: null,

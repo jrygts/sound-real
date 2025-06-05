@@ -29,13 +29,7 @@ export async function GET(request: NextRequest) {
 
   const session = exchangeData.session;
 
-  console.log("📥 [post-login] session after exchange", { session });
-  console.log(
-    "📥 [post-login] request headers host",
-    request.headers.get("host"),
-    "cookie:",
-    cookies().getAll().find((c) => c.name === "sb-access-token")
-  );
+  console.log("📥 [post-login] Authentication successful");
 
   if (!session) {
     console.log("📥 [post-login] No session → redirect /");

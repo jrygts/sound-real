@@ -35,8 +35,8 @@ export function countWords(text: string): number {
 export const PLAN_CONFIGS = {
   'Free': {
     plan_type: 'Free',
-    words_limit: 0,
-    transformations_limit: 5, // 5 transformations per day for Free
+    words_limit: 250,
+    transformations_limit: 5, // 5 transformations per day for Free  
     price: 0,
     name: 'Free Plan',
     billing_period: 'daily'
@@ -213,19 +213,17 @@ export function canProcessWords(
   reason?: string;
 } {
   const config = getPlanConfig(planType);
-  
-  // Free users have 0 word limit (use transformations instead)
-  if (planType === 'Free') {
-    return {
-      canProcess: false,
-      wordsRemaining: 0,
-      reason: 'Free users cannot process words. Please upgrade to a paid plan.'
-    };
-  }
-
   const wordsRemaining = Math.max(0, wordsLimit - wordsUsed);
 
   if (wordsNeeded > wordsRemaining) {
+    if (planType === 'Free') {
+      return {
+        canProcess: false,
+        wordsRemaining,
+        reason: `Daily word limit reached. You've used ${wordsUsed}/${wordsLimit} words today. Upgrade for higher limits or wait until tomorrow.`
+      };
+    }
+    
     return {
       canProcess: false,
       wordsRemaining,
@@ -281,16 +279,16 @@ export function formatWordUsage(
 ): string {
   const config = getPlanConfig(planType);
   
-  if (planType === 'Free') {
-    return `Free Plan - 0 words/month`;
-  }
-
   if (wordsLimit === 0) {
     return `${config.name} - Unlimited words`;
   }
 
   const wordsRemaining = Math.max(0, wordsLimit - wordsUsed);
   const percentage = wordsLimit > 0 ? Math.round((wordsUsed / wordsLimit) * 100) : 0;
+  
+  if (planType === 'Free') {
+    return `${wordsUsed.toLocaleString()} / ${wordsLimit.toLocaleString()} words used today (${percentage}%) - ${wordsRemaining.toLocaleString()} remaining`;
+  }
   
   return `${wordsUsed.toLocaleString()} / ${wordsLimit.toLocaleString()} words used (${percentage}%) - ${wordsRemaining.toLocaleString()} remaining`;
 }
@@ -374,7 +372,7 @@ export function getWordLimitExceededMessage(
   const config = getPlanConfig(planType);
   
   if (planType === 'Free') {
-    return `Free users cannot process words. Please upgrade to the Basic plan (${PLAN_CONFIGS.Basic.words_limit.toLocaleString()} words/month) to get started.`;
+    return `You need ${wordsNeeded.toLocaleString()} words but only have ${wordsRemaining.toLocaleString()} remaining today. Your Free plan includes ${config.words_limit} words per day. Upgrade to Basic plan (${PLAN_CONFIGS.Basic.words_limit.toLocaleString()} words/month) for higher limits.`;
   }
 
   return `You need ${wordsNeeded.toLocaleString()} words but only have ${wordsRemaining.toLocaleString()} remaining in your ${config.name}. Please upgrade your plan or wait for your next billing period.`;

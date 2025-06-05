@@ -304,7 +304,7 @@ function runBusinessLogicTests(): { passed: number; failed: number } {
   let failed = 0;
   
   // Test Free vs Paid user logic
-  const freeUserLogic = getPlanConfig('Free').words_limit === 0;
+  const freeUserLogic = getPlanConfig('Free').words_limit === 250;
   const basicUserLogic = getPlanConfig('Basic').words_limit === 5000;
   const plusUserLogic = getPlanConfig('Plus').words_limit === 15000;
   const ultraUserLogic = getPlanConfig('Ultra').words_limit === 35000;

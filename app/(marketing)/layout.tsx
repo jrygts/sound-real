@@ -1,5 +1,5 @@
 import { createClient } from "@/libs/supabase/server";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 
@@ -15,14 +15,7 @@ export default async function MarketingLayout({ children }: Props) {
       data: { session },
     } = await supabase.auth.getSession();
 
-    console.log(
-      "🍪 [marketing] host",
-      headers().get("host"),
-      "session:",
-      !!session,
-      "cookie:",
-      cookies().getAll().find((c) => c.name === "sb-access-token")
-    );
+
 
     // Check if user is authenticated and coming from /auth route
     if (session?.user) {

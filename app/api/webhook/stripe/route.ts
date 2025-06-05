@@ -362,7 +362,7 @@ async function handleSubscriptionDeleted(event: Stripe.Event): Promise<void> {
     .from('profiles')
     .update({
       plan_type: 'Free',
-      words_limit: 0,
+              words_limit: 250,
       transformations_limit: 5,
       stripe_subscription_status: 'canceled',
       stripe_subscription_id: null,

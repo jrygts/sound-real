@@ -100,8 +100,8 @@ export async function POST(request: Request) {
             if (usage.remaining <= 0) {
               return NextResponse.json(
                 { 
-                  error: "TRANSFORMATION_LIMIT_EXCEEDED",
-                  message: "Free plan daily limit reached. Upgrade for word-based billing.",
+                  error: "WORD_LIMIT_EXCEEDED",
+                  message: "Free plan daily limit reached (250 words/day). Upgrade for higher monthly limits.",
                   usage: usage,
                   upgradeUrl: "/billing"
                 },
