@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { isUserAdmin } from "@/libs/admin";
 import { countWords, validateWordCount } from "@/lib/wordUtils";
 import { cleanMarkdownForHumanization } from "@/libs/textProcessing";
+import { postProcess } from "@/src/lib/postProcessor";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -134,46 +135,45 @@ export async function POST(request: Request) {
     }
     
     // All checks passed - proceed with transformation
-    console.log(`🚀 [Transform] Starting OpenAI processing for ${wordsToProcess} words`);
+    console.log(`🚀 [Transform] Starting OpenAI baseline rewrite for ${wordsToProcess} words`);
 
-    const systemPrompt = `You are implementing Human-Like Rewrite Protocol v2, designed to lower AI-detection by increasing burstiness and lexical entropy while preserving facts and professional tone.
+    // Determine mode based on word count
+    const mode = wordsToProcess <= 400 ? 'MODE-A' : 'MODE-B';
+    console.log(`📝 [Transform] Using ${mode} for ${wordsToProcess} words`);
 
-CORE MISSION: Apply scientific linguistic transformations based on text length to achieve optimal detection evasion.`;
+    const systemPrompt = `You are SR-Rewriter, focused on creating baseline rewrites that preserve facts and professional tone while preparing text for post-processing.
 
-    const userPrompt = `Human-Like Rewrite Protocol v2
+CORE MISSION: Apply ${mode} rewriting rules to create a solid foundation for further humanization processing.`;
 
-Goal → Lower AI-detection by increasing burstiness & lexical entropy
-Constraints → Preserve facts, keep professional tone, no new info
+    const userPrompt = `Baseline Rewrite Instructions
 
-"${cleanedText}"
+Text to rewrite: "${cleanedText}"
 
-STEP 0 • Detect length L.
-    if L < 400 words ➜ use MODE-A
-    else            ➜ use MODE-B
+Apply ${mode} rules:
 
-MODE-A (Short) — Micro-Paraphrase  
-1. Swap ≤ 15 % verbs/adjectives with synonyms that do **not** change register.  
-2. Collapse or split ~20 % of sentences so final lengths vary 8–30 words.  
-3. Eliminate contractions (except "isn't", "won't").  
-4. Remove rhetorical questions.
+${mode === 'MODE-A' ? `MODE-A (≤400 words) — Micro-Paraphrase:
+1. Swap ≤15% of verbs/adjectives with synonyms that maintain register
+2. Vary sentence lengths between 8-30 words through minor splitting/merging
+3. Remove headers if present; use plain paragraphs
+4. Remove rhetorical questions
+5. Keep citations and brackets unchanged` : `MODE-B (>400 words) — Structural Re-order:
+1. Delete headers; output plain paragraphs only
+2. In 40% of sentences, flip clause order or switch passive ↔ active voice
+3. Restructure paragraph order while maintaining logical flow
+4. Vary sentence structure and length significantly
+5. Keep markdown lists and citations unchanged if present`}
 
-MODE-B (Long) — Structural Re-order  
-1. Delete any headers; output plain paragraphs only.  
-2. In 40 % of sentences, flip clause order or switch passive ↔ active.  
-3. Randomly pick 5 domain terms and replace each with a lesser-seen but correct synonym (consult vet lexicon if needed).  
-4. For every third paragraph, insert one parenthetical aside.  
-5. Keep markdown lists exactly as given (if present).
+CONSTRAINTS:
+• Preserve all factual content exactly
+• Maintain professional, academic tone
+• No slang, humor, or personal voice
+• Keep all citations/brackets untouched
+• Output clean, readable prose
 
-GLOBAL RULES  
-• Hedges ≤ 2 per 200 words.  
-• Numerals: replace fuzzy phrases with concrete ranges when data exists.  
-• Keep citations/brackets untouched.  
-• Do **not** inject slang, humor, or personal voice.
-
-OUTPUT: Transformed text with optimized burstiness and lexical entropy.`;
+Return only the rewritten text, no explanations.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-2025-04-14",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -186,18 +186,23 @@ OUTPUT: Transformed text with optimized burstiness and lexical entropy.`;
       ],
       temperature: 0.5,
       top_p: 0.9,
-      presence_penalty: 0.3,
-      frequency_penalty: 0.3,
+      presence_penalty: 0.2,
+      frequency_penalty: 0.2,
       max_tokens: Math.min(wordsToProcess * 2, 4000),
     });
     
-    const humanizedText = completion.choices[0].message.content || cleanedText;
+    const baselineRewrite = completion.choices[0].message.content || cleanedText;
+    console.log(`✅ [Transform] Baseline rewrite completed`);
+
+    // Apply post-processor with random seed for additional humanization
+    console.log(`🔧 [Transform] Applying post-processor`);
+    const humanizedText = postProcess(baselineRewrite);
     
-    // Generate realistic AI detection scores
-    const aiScoreBefore = 0.85 + Math.random() * 0.14; // 85-99%
-    const aiScoreAfter = 0.05 + Math.random() * 0.15;  // 5-20%
+    // Mock AI detection scores for MVP (will be replaced with real GPTZero API)
+    const aiScoreBefore = 0.87; // Mock: 87% AI-generated before
+    const aiScoreAfter = 0.48;  // Mock: 48% AI-generated after (below 65% target)
     
-    console.log(`✅ [Transform] OpenAI processing completed successfully`);
+    console.log(`✅ [Transform] Post-processing completed successfully`);
 
     // Save transformation and update usage for authenticated users
     if (user) {

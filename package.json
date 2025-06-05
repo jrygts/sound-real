@@ -11,6 +11,7 @@
     "sync-plans": "npx tsx scripts/sync-stripe-plans.ts",
     "sync-plans:dry-run": "npx tsx scripts/sync-stripe-plans.ts --dry-run",
     "test:word-billing": "npx tsx scripts/test-word-billing.ts",
+    "test:post-processor": "npx tsx src/lib/postProcessor.test.ts",
     "test:api": "echo 'Run manual API tests for word-based billing endpoints'",
     "migrate:word-billing": "echo 'Run word-based billing migration scripts'"
   },
