@@ -27,7 +27,7 @@ const ButtonCheckout = ({
     setErrorMessage("");
 
     try {
-      console.log('[ButtonCheckout] Starting checkout process for price:', priceId);
+      // console.log removed for prod ('[ButtonCheckout] Starting checkout process for price:', priceId);
       
       const response: any = await apiClient.post(
         "/stripe/create-checkout",
@@ -38,13 +38,8 @@ const ButtonCheckout = ({
           mode,
         }
       );
-      console.log("[ButtonCheckout] API response:", response);
-      console.log("[ButtonCheckout] Response structure:", {
-        hasUrl: !!response?.url,
-        hasError: !!response?.error,
-        responseKeys: Object.keys(response || {}),
-        url: response?.url
-      });
+      // console.log removed for prod ("[ButtonCheckout] API response:", response);
+      // console.log removed for prod ("[ButtonCheckout] Response structure:", { hasUrl: !!response?.url, hasError: !!response?.error, responseKeys: Object.keys(response || {}), url: response?.url });
 
       if (!response?.url) {
         const errorMsg = response?.error || "Failed to create Stripe checkout session.";
@@ -53,11 +48,11 @@ const ButtonCheckout = ({
         
         // If error is about missing profile, try to create one
         if (errorMsg.includes('profile') || errorMsg.includes('Profile')) {
-          console.log('[ButtonCheckout] Attempting to create user profile...');
+          // console.log removed for prod ('[ButtonCheckout] Attempting to create user profile...');
           try {
             const profileResponse: any = await apiClient.post("/stripe/create-profile");
             if (profileResponse?.success) {
-              console.log('[ButtonCheckout] Profile created, retrying checkout...');
+              // console.log removed for prod ('[ButtonCheckout] Profile created, retrying checkout...');
               // Retry the checkout after profile creation
               const retryResponse: any = await apiClient.post("/stripe/create-checkout", {
                 priceId,
@@ -67,7 +62,7 @@ const ButtonCheckout = ({
               });
               
               if (retryResponse?.url) {
-                console.log('[ButtonCheckout] Retry successful, redirecting to:', retryResponse.url);
+                // console.log removed for prod ('[ButtonCheckout] Retry successful, redirecting to:', retryResponse.url);
                 window.location.href = retryResponse.url;
                 return;
               }
@@ -82,7 +77,7 @@ const ButtonCheckout = ({
         return;
       }
 
-      console.log('[ButtonCheckout] Redirecting to Stripe checkout:', response.url);
+      // console.log removed for prod ('[ButtonCheckout] Redirecting to Stripe checkout:', response.url);
       window.location.href = response.url;
     } catch (e: any) {
       console.error("[ButtonCheckout] Network or API error:", e);

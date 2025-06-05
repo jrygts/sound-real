@@ -6,6 +6,7 @@
  */
 
 import { createClient } from "@/libs/supabase/server";
+import { PLAN_LIMITS, PLAN_TRANSFORMATIONS, getPlanConfig as getCentralizedPlanConfig, PlanKey } from "./plans";
 
 // Word counting function - counts INPUT words only
 export function countWords(text: string): number {
@@ -31,36 +32,36 @@ export function countWords(text: string): number {
   return words.length;
 }
 
-// Plan configuration constants
+// Plan configuration constants - now using centralized values
 export const PLAN_CONFIGS = {
   'Free': {
     plan_type: 'Free',
-    words_limit: 250,
-    transformations_limit: 5, // Keep for backward compatibility
+    words_limit: PLAN_LIMITS.Free,
+    transformations_limit: PLAN_TRANSFORMATIONS.Free,
     price: 0,
     name: 'Free Trial',
     billing_period: 'lifetime' // One-time limit, no resets
   },
   'Basic': {
     plan_type: 'Basic',
-    words_limit: 5000,
-    transformations_limit: 200, // Keep for backward compatibility
+    words_limit: PLAN_LIMITS.Basic,
+    transformations_limit: PLAN_TRANSFORMATIONS.Basic,
     price: 6.99,
     name: 'Basic Plan',
     billing_period: 'monthly'
   },
   'Plus': {
     plan_type: 'Plus',
-    words_limit: 15000,
-    transformations_limit: 600, // Keep for backward compatibility
+    words_limit: PLAN_LIMITS.Plus,
+    transformations_limit: PLAN_TRANSFORMATIONS.Plus,
     price: 19.99,
     name: 'Plus Plan',
     billing_period: 'monthly'
   },
   'Ultra': {
     plan_type: 'Ultra',
-    words_limit: 35000,
-    transformations_limit: 1200, // Keep for backward compatibility
+    words_limit: PLAN_LIMITS.Ultra,
+    transformations_limit: PLAN_TRANSFORMATIONS.Ultra,
     price: 39.99,
     name: 'Ultra Plan',
     billing_period: 'monthly'
@@ -120,7 +121,7 @@ export async function getUserWordUsage(userId: string): Promise<{
     hasAccess = wordsRemaining > 0 || wordsLimit === -1; // -1 means unlimited
   }
 
-  console.log(`📊 [getUserWordUsage] User ${userId}: ${wordsUsed}/${wordsLimit} words, ${transformationsUsed}/${transformationsLimit} transformations, Plan: ${planType}`);
+  // console.log removed for prod (`📊 [getUserWordUsage] User ${userId}: ${wordsUsed}/${wordsLimit} words, ${transformationsUsed}/${transformationsLimit} transformations, Plan: ${planType}`);
 
   return {
     words_used: wordsUsed,
@@ -164,7 +165,7 @@ export async function incrementWordUsage(userId: string, wordsUsed: number): Pro
     throw new Error('Failed to update word usage');
   }
   
-  console.log(`📈 [incrementWordUsage] User ${userId}: Added ${wordsUsed} words (${currentWordsUsed} → ${currentWordsUsed + wordsUsed})`);
+  // console.log removed for prod (`📈 [incrementWordUsage] User ${userId}: Added ${wordsUsed} words (${currentWordsUsed} → ${currentWordsUsed + wordsUsed})`);
 }
 
 // Increment transformation usage for Free users
@@ -198,7 +199,7 @@ export async function incrementTransformationUsage(userId: string): Promise<void
     throw new Error('Failed to update transformation usage');
   }
   
-  console.log(`📈 [incrementTransformationUsage] User ${userId}: Incremented transformation usage (${currentTransformationsUsed} → ${currentTransformationsUsed + 1})`);
+  // console.log removed for prod (`📈 [incrementTransformationUsage] User ${userId}: Incremented transformation usage (${currentTransformationsUsed} → ${currentTransformationsUsed + 1})`);
 }
 
 // Check if user can process text with word count
@@ -416,7 +417,7 @@ export async function resetBillingCycle(userId: string): Promise<void> {
       throw new Error('Failed to reset billing cycle');
     }
     
-    console.log(`🔄 [BillingReset] User ${userId}: Billing cycle reset manually`);
+    // console.log removed for prod (`🔄 [BillingReset] User ${userId}: Billing cycle reset manually`);
   } catch (error) {
     console.error('❌ [resetBillingCycle] Failed:', error);
     throw error;

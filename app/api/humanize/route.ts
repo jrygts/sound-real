@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     const wordsToProcess = validation.wordCount;
-    console.log(`📝 [Transform] Processing ${wordsToProcess} words`);
+    // console.log removed for prod (`📝 [Transform] Processing ${wordsToProcess} words`);
 
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser();
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
             const usageData = await usageResponse.json();
             const usage = usageData.usage;
 
-            console.log(`📊 [Usage] Current: ${usage.words_used}/${usage.words_limit} words, Plan: ${usage.plan}`);
+            // console.log removed for prod (`📊 [Usage] Current: ${usage.words_used}/${usage.words_limit} words, Plan: ${usage.plan}`);
 
             /* Guard: refuse if this job would exceed quota */
             if (usage.words_used + wordsToProcess > usage.words_limit && usage.words_limit !== -1) {
@@ -113,11 +113,11 @@ export async function POST(request: Request) {
     }
     
     // All checks passed - proceed with transformation
-    console.log(`🚀 [Transform] Starting OpenAI baseline rewrite for ${wordsToProcess} words`);
+    // console.log removed for prod (`🚀 [Transform] Starting OpenAI baseline rewrite for ${wordsToProcess} words`);
 
     // Determine mode based on word count
     const mode = wordsToProcess <= 400 ? 'MODE-A' : 'MODE-B';
-    console.log(`📝 [Transform] Using ${mode} for ${wordsToProcess} words`);
+    // console.log removed for prod (`📝 [Transform] Using ${mode} for ${wordsToProcess} words`);
 
     const systemPrompt = `You are SR-Rewriter, focused on creating baseline rewrites that preserve facts and professional tone while preparing text for post-processing.
 
@@ -170,10 +170,10 @@ Return only the rewritten text, no explanations.`;
     });
     
     const baselineRewrite = completion.choices[0].message.content || cleanedText;
-    console.log(`✅ [Transform] Baseline rewrite completed`);
+    // console.log removed for prod (`✅ [Transform] Baseline rewrite completed`);
 
     // Apply post-processor with random seed for additional humanization
-    console.log(`🔧 [Transform] Applying post-processor`);
+    // console.log removed for prod (`🔧 [Transform] Applying post-processor`);
     // TODO: Implement postProcessor in Phase 2 - for now, using baseline rewrite as final output
     const humanizedText = baselineRewrite;
     
@@ -181,7 +181,7 @@ Return only the rewritten text, no explanations.`;
     const mockScoreBefore = 0.87; // Mock: 87% AI-generated before
     const mockScoreAfter = 0.48;  // Mock: 48% AI-generated after (below 65% target)
     
-    console.log(`✅ [Transform] Post-processing completed successfully`);
+    // console.log removed for prod (`✅ [Transform] Post-processing completed successfully`);
 
     // Save transformation and update usage for authenticated users
     if (user) {
@@ -195,7 +195,7 @@ Return only the rewritten text, no explanations.`;
           ai_score_after: mockScoreAfter,
           word_count: wordsToProcess,
         });
-        console.log('💾 [Transform] Transformation saved to database');
+        // console.log removed for prod ('💾 [Transform] Transformation saved to database');
 
         // Update usage after successful processing
         const isAdmin = isUserAdmin({ email: user.email, id: user.id });
@@ -226,7 +226,7 @@ Return only the rewritten text, no explanations.`;
       const today = new Date().toDateString();
       cookies().set("free_uses_today", (freeUsesToday + 1).toString());
       cookies().set("last_reset_date", today);
-      console.log(`📊 [Transform] Updated cookie usage: ${freeUsesToday + 1}/${FREE_DAILY_LIMIT}`);
+      // console.log removed for prod (`📊 [Transform] Updated cookie usage: ${freeUsesToday + 1}/${FREE_DAILY_LIMIT}`);
     }
     
     // Return success response

@@ -119,7 +119,7 @@ export default function LandingPageContent() {
             
             // Log usage update if available
             if (data.usage) {
-              console.log('📊 Usage updated:', data.usage)
+              // console.log removed for prod ('📊 Usage updated:', data.usage)
             }
             
           } else {

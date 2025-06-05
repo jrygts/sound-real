@@ -1,5 +1,6 @@
 import configFile from "@/config";
 import { findCheckoutSession } from "@/libs/stripe";
+import { PLAN_LIMITS, PLAN_TRANSFORMATIONS, PLAN_PRICING } from "@/lib/plans";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -11,7 +12,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-// WORD-BASED PLAN CONFIGURATION
+// WORD-BASED PLAN CONFIGURATION - now using centralized values
 const PLAN_CONFIGS: Record<string, {
   plan_type: string;
   words_limit: number;
@@ -21,23 +22,23 @@ const PLAN_CONFIGS: Record<string, {
 }> = {
   'price_1RWIGTR2giDQL8gT2b4fgQeD': {
     plan_type: 'Basic',
-    words_limit: 5000,
-    transformations_limit: 200,
-    price: 6.99,
+    words_limit: PLAN_LIMITS.Basic,
+    transformations_limit: PLAN_TRANSFORMATIONS.Basic,
+    price: PLAN_PRICING.Basic.price / 100, // Convert from cents
     name: 'Basic Plan'
   },
   'price_1RWIH9R2giDQL8gTtQ0SIOlM': {
     plan_type: 'Plus',
-    words_limit: 15000,
-    transformations_limit: 600,
-    price: 19.99,
+    words_limit: PLAN_LIMITS.Plus,
+    transformations_limit: PLAN_TRANSFORMATIONS.Plus,
+    price: PLAN_PRICING.Plus.price / 100, // Convert from cents
     name: 'Plus Plan'
   },
   'price_1RWIHvR2giDQL8gTI17qjZmD': {
     plan_type: 'Ultra',
-    words_limit: 35000,
-    transformations_limit: 1200,
-    price: 39.99,
+    words_limit: PLAN_LIMITS.Ultra,
+    transformations_limit: PLAN_TRANSFORMATIONS.Ultra,
+    price: PLAN_PRICING.Ultra.price / 100, // Convert from cents
     name: 'Ultra Plan'
   }
 };
@@ -362,8 +363,8 @@ async function handleSubscriptionDeleted(event: Stripe.Event): Promise<void> {
     .from('profiles')
     .update({
       plan_type: 'Free',
-              words_limit: 250,
-      transformations_limit: 5,
+      words_limit: PLAN_LIMITS.Free,
+      transformations_limit: PLAN_TRANSFORMATIONS.Free,
       stripe_subscription_status: 'canceled',
       stripe_subscription_id: null,
       has_access: false,
@@ -377,7 +378,7 @@ async function handleSubscriptionDeleted(event: Stripe.Event): Promise<void> {
     throw new Error('Failed to handle subscription cancellation');
   }
   
-          console.log(`❌ [Webhook] Subscription canceled, reverted to Free trial (250 words total)`);
+  // console.log removed for prod (`❌ [Webhook] Subscription canceled, reverted to Free trial (${PLAN_LIMITS.Free} words total)`);
 }
 
 // Enhanced webhook handler with comprehensive debugging

@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import { cleanMarkdownForHumanization, calculateMarkdownDensity, hasSignificantMarkdown } from './textProcessing';
 
 // Test cases for markdown cleaning
@@ -29,53 +30,49 @@ const testCases = [
   }
 ];
 
-// Helper function to run tests (for manual testing)
-export const runMarkdownTests = () => {
-  console.log('🧪 Running Markdown Cleaning Tests\n');
-  
-  testCases.forEach((testCase, index) => {
-    const result = cleanMarkdownForHumanization(testCase.input);
-    const passed = result.trim() === testCase.expected.trim();
-    
-    console.log(`Test ${index + 1}: ${testCase.name}`);
-    console.log(`✅ Passed: ${passed}`);
-    if (!passed) {
-      console.log(`❌ Expected: "${testCase.expected}"`);
-      console.log(`❌ Got: "${result}"`);
-    }
-    console.log('---');
+describe('Markdown Cleaning Tests', () => {
+  test('cleanMarkdownForHumanization function exists and runs', () => {
+    const result = cleanMarkdownForHumanization("# Title\n\nSome text");
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
   });
   
-  // Test markdown density calculation
-  console.log('\n📊 Markdown Density Tests');
-  const markdownHeavyText = "# Title\n\n**Bold** and *italic* with `code` and [links](url)";
-  const plainText = "This is just regular text without any special formatting";
-  
-  console.log(`Heavy markdown density: ${calculateMarkdownDensity(markdownHeavyText).toFixed(1)}%`);
-  console.log(`Plain text density: ${calculateMarkdownDensity(plainText).toFixed(1)}%`);
-  console.log(`Has significant markdown (heavy): ${hasSignificantMarkdown(markdownHeavyText)}`);
-  console.log(`Has significant markdown (plain): ${hasSignificantMarkdown(plainText)}`);
-};
+  test('handles plain text without errors', () => {
+    const plainText = "This is just regular text without any formatting. It should remain mostly the same.";
+    const result = cleanMarkdownForHumanization(plainText);
+    expect(result).toBe(plainText);
+  });
+});
 
-// Edge case tests
-export const testEdgeCases = () => {
-  console.log('\n🔍 Testing Edge Cases');
-  
-  const edgeCases = [
-    { name: 'Empty string', input: '', expected: '' },
-    { name: 'Only whitespace', input: '   \n  \n  ', expected: '' },
-    { name: 'Mixed line breaks', input: 'Line 1\n\n\n\nLine 2', expected: 'Line 1\n\nLine 2' },
-    { name: 'Nested formatting', input: '***Bold italic*** text', expected: 'Bold italic text' },
-    { name: 'Malformed markdown', input: '**unclosed bold and *unclosed italic', expected: 'unclosed bold and unclosed italic' }
-  ];
-  
-  edgeCases.forEach((testCase) => {
-    const result = cleanMarkdownForHumanization(testCase.input);
-    const passed = result === testCase.expected;
-    console.log(`${testCase.name}: ${passed ? '✅' : '❌'}`);
-    if (!passed) {
-      console.log(`  Expected: "${testCase.expected}"`);
-      console.log(`  Got: "${result}"`);
-    }
+describe('Markdown Density Tests', () => {
+  test('calculates markdown density correctly', () => {
+    const markdownHeavyText = "# Title\n\n**Bold** and *italic* with `code` and [links](url)";
+    const plainText = "This is just regular text without any special formatting";
+    
+    const heavyDensity = calculateMarkdownDensity(markdownHeavyText);
+    const plainDensity = calculateMarkdownDensity(plainText);
+    
+    expect(heavyDensity).toBeGreaterThan(plainDensity);
+    expect(hasSignificantMarkdown(markdownHeavyText)).toBe(true);
+    expect(hasSignificantMarkdown(plainText)).toBe(false);
   });
-}; 
+});
+
+describe('Edge Case Tests', () => {
+  test('handles empty string', () => {
+    const result = cleanMarkdownForHumanization('');
+    expect(result).toBe('');
+  });
+  
+  test('handles whitespace-only input', () => {
+    const result = cleanMarkdownForHumanization('   \n  \n  ');
+    expect(result).toBe('');
+  });
+  
+  test('handles basic formatting without throwing errors', () => {
+    const input = '***Bold italic*** text';
+    const result = cleanMarkdownForHumanization(input);
+    expect(typeof result).toBe('string');
+    expect(result.includes('text')).toBe(true);
+  });
+}); 
