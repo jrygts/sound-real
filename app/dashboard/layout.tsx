@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, BarChart3, CreditCard, Settings, LogOut, ChevronDown, Menu, X, Wand2 } from "lucide-react"
+import { LayoutDashboard, Settings, LogOut, ChevronDown, Menu, X, Wand2 } from "lucide-react"
 import type React from "react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/libs/supabase/client"
@@ -25,8 +25,6 @@ import { useRouter } from "next/navigation"
 const sidebarNavItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Humanize", href: "/dashboard/humanize", icon: Wand2 },
-  { title: "Usage", href: "/dashboard/usage", icon: BarChart3 },
-  { title: "Billing", href: "/dashboard/billing", icon: CreditCard },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
@@ -176,11 +174,6 @@ export default function DashboardLayout({
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard/settings">
                     <Settings className="mr-2 h-4 w-4" /> Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/billing">
-                    <CreditCard className="mr-2 h-4 w-4" /> Billing
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
