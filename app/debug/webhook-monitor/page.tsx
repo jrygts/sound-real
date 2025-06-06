@@ -67,7 +67,7 @@ export default function WebhookMonitor() {
   };
 
   useEffect(() => {
-    if (autoRefresh && userId) {
+    if (autoRefresh && userId && process.env.NODE_ENV !== 'production') {
       const interval = setInterval(fetchEvents, 5000); // Refresh every 5 seconds
       return () => clearInterval(interval);
     }
@@ -88,6 +88,17 @@ export default function WebhookMonitor() {
     if (analysis.includes('STATUS')) return 'bg-purple-100 text-purple-700';
     return 'bg-gray-100 text-gray-700';
   };
+
+  if (process.env.NODE_ENV === 'production') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Webhook Monitor</h1>
+          <p className="text-slate-600">This debug tool is disabled in production.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

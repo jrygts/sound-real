@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SupabaseClient } from "@supabase/supabase-js";
 
+export const dynamic = 'force-dynamic';
+
 // Manual webhook testing endpoint for development
 // Use this to test webhook logic when actual Stripe webhooks aren't working
 export async function POST(req: NextRequest) {

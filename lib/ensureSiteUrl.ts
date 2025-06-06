@@ -1,5 +1,6 @@
 // Runtime guard to prevent localhost URLs in production
-if (process.env.NODE_ENV === "production") {
+// Skip validation during build process
+if (process.env.NODE_ENV === "production" && !process.env.NEXT_PHASE) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.toLowerCase();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.toLowerCase();
   

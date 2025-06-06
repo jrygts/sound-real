@@ -15,7 +15,11 @@ export default function DebugPage() {
   )
 
   useEffect(() => {
-    loadUserInfo()
+    if (process.env.NODE_ENV !== 'production') {
+      loadUserInfo()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   const loadUserInfo = async () => {
@@ -48,6 +52,17 @@ NEXT_PUBLIC_ADMIN_USER_IDS="${userInfo.id}"`
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Debug Page</h1>
+          <p className="text-slate-600">This page is disabled in production.</p>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {

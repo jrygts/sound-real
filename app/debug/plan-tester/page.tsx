@@ -72,6 +72,17 @@ export default function PlanTester() {
     return 'text-gray-700 bg-gray-50 border-gray-200';
   };
 
+  if (process.env.NODE_ENV === 'production') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Plan Tester</h1>
+          <p className="text-slate-600">This debug tool is disabled in production.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">

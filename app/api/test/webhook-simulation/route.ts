@@ -2,6 +2,8 @@ import { createClient } from "@/libs/supabase/server";
 import { isUserAdmin } from "@/libs/admin";
 import { NextResponse, NextRequest } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 // 🧪 TESTING: Webhook simulation endpoint for debugging billing scenarios
 export async function POST(request: NextRequest) {
   try {

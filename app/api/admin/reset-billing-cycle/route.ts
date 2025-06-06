@@ -3,6 +3,8 @@ import { isUserAdmin } from "@/libs/admin";
 import { NextResponse, NextRequest } from "next/server";
 import { resetBillingCycle } from "@/lib/wordUtils";
 
+export const dynamic = 'force-dynamic';
+
 // 🧪 TESTING: Manual billing cycle reset endpoint (Admin only)
 export async function POST(req: NextRequest) {
   try {

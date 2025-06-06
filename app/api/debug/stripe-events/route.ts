@@ -3,11 +3,17 @@ import Stripe from 'stripe';
 import { createClient } from "@/libs/supabase/server";
 import { isUserAdmin } from "@/libs/admin";
 
+export const dynamic = 'force-dynamic';
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-08-16',
 });
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: true });
+  }
+
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
