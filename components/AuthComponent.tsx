@@ -18,7 +18,9 @@ export default function AuthComponent() {
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
     (typeof window !== "undefined"
       ? window.location.origin
-      : "http://localhost:3000");   // dev fallback
+      : (process.env.NODE_ENV === "production" 
+          ? "https://sound-real.com" 
+          : "http://localhost:3000"));   // dev fallback only
 
   const redirectUrl = `${SITE}/auth/post-login`;
 

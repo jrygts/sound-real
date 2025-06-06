@@ -73,7 +73,7 @@ export async function POST(request: Request) {
         if (!isAdmin) {
           // Get current usage before processing
           try {
-            const usageResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/subscription/usage`, {
+            const usageResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "https://sound-real.com" : "http://localhost:3000")}/api/subscription/usage`, {
               method: 'GET',
               headers: {
                 'Cookie': request.headers.get('Cookie') || '',

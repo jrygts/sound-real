@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create customer portal session
-    const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/billing`;
+    const returnUrl = `${process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "https://sound-real.com" : "http://localhost:3000")}/dashboard/billing`;
     const portalUrl = await createCustomerPortal({
       customerId: profile.customer_id,
       returnUrl,
