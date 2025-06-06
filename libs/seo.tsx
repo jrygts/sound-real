@@ -27,10 +27,7 @@ export const getSEOTags = ({
     applicationName: config.appName,
     // set a base URL prefix for other fields that require a fully qualified URL (.e.g og:image: og:image: 'https://yourdomain.com/share.png' => '/share.png')
     metadataBase: new URL(
-      process.env.NEXT_PUBLIC_SITE_URL || 
-      (process.env.NODE_ENV === "development"
-        ? "http://localhost:3000/"
-        : `https://${config.domainName}/`)
+      process.env.NEXT_PUBLIC_SITE_URL || `https://${config.domainName}/`
     ),
 
     openGraph: {

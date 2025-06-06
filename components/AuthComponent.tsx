@@ -16,11 +16,7 @@ export default function AuthComponent() {
   // Must match EXACTLY with Supabase → Auth → Settings → Site URL
   const SITE =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-    (typeof window !== "undefined"
-      ? window.location.origin
-      : (process.env.NODE_ENV === "production" 
-          ? "https://sound-real.com" 
-          : "http://localhost:3000"));   // dev fallback only
+    (typeof window !== "undefined" ? window.location.origin : "https://sound-real.com");
 
   const redirectUrl = `${SITE}/auth/post-login`;
 
