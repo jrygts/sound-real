@@ -8,7 +8,7 @@ const config = {
   appDescription:
     "Transform AI-generated content into natural, undetectable prose.",
   // REQUIRED (no https://, not trialing slash at the end, just the naked domain)
-  domainName: "shipfa.st",
+  domainName: "sound-real.com",
   crisp: {
     // Crisp website ID. IF YOU DON'T USE CRISP: just remove this => Then add a support email in this config file (resend.supportEmail) otherwise customer support won't work.
     id: "",
@@ -20,7 +20,7 @@ const config = {
     plans: [
       {
         // REQUIRED — we use this to find the plan in the webhook (for instance if you want to update the user's credits based on the plan)
-        priceId: "price_1RWIGTR2giDQL8gT2b4fgQeD", // Basic Plan
+        priceId: process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID!, // Basic Plan
         //  REQUIRED - Name of the plan, displayed on the pricing page
         name: "Basic",
         // A friendly description of the plan, displayed on the pricing page. Tip: explain why this plan and not others
@@ -41,7 +41,7 @@ const config = {
         ],
       },
       {
-        priceId: "price_1RWIH9R2giDQL8gTtQ0SIOlM", // Plus Plan
+        priceId: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID!, // Plus Plan
         // This plan will look different on the pricing page, it will be highlighted. You can only have one plan with isFeatured: true
         isFeatured: true,
         name: "Plus",
@@ -60,7 +60,7 @@ const config = {
         ],
       },
       {
-        priceId: "price_1RWIHvR2giDQL8gTI17qjZmD", // Pro Plan
+        priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID!, // Pro Plan
         name: "Pro",
         description: "For power users who need the best",
         price: 39.99,

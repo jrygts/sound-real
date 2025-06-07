@@ -25,7 +25,7 @@ export function getPlanConfig(planType: PlanKey) {
 // Plan pricing information
 export const PLAN_PRICING = {
   Free: { price: 0, priceId: null },
-  Basic: { price: 699, priceId: 'price_1RWIGTR2giDQL8gT2b4fgQeD' },
-  Plus: { price: 1999, priceId: 'price_1RWIH9R2giDQL8gTtQ0SIOlM' },
-  Ultra: { price: 3999, priceId: 'price_1RWIHvR2giDQL8gTI17qjZmD' },
+  Basic: { price: 699, priceId: process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID! },
+  Plus: { price: 1999, priceId: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID! },
+  Ultra: { price: 3999, priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID! },
 } as const; 
