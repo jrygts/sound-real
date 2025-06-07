@@ -395,6 +395,8 @@ export async function POST(req: NextRequest) {
   // Log webhook environment setup
   console.log(`🔗 [Webhook] Environment check:`, {
     hasWebhookSecret: !!webhookSecret,
+    webhookSecretLength: webhookSecret?.length || 0,
+    webhookSecretPrefix: webhookSecret?.substring(0, 7) || 'NONE',
     hasSignature: !!signature,
     bodyLength: body.length,
     hasSupabaseServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
