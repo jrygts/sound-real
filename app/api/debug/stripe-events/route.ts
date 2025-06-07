@@ -109,9 +109,9 @@ export async function GET(request: NextRequest) {
 
     // Get price details for analysis
     const priceConfigs: Record<string, { name: string; words: number }> = {
-      'price_1RWIGTR2giDQL8gT2b4fgQeD': { name: 'Basic', words: 5000 },
-      'price_1RWIH9R2giDQL8gTtQ0SIOlM': { name: 'Plus', words: 15000 },
-      'price_1RWIHvR2giDQL8gTI17qjZmD': { name: 'Ultra', words: 35000 }
+      [process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID!]: { name: 'Basic', words: 5000 },
+      [process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID!]: { name: 'Plus', words: 15000 },
+      [process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID!]: { name: 'Ultra', words: 35000 }
     };
 
     // Analyze recent events for patterns

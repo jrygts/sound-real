@@ -16,7 +16,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-// WORD-BASED PLAN CONFIGURATION - now using centralized values
+// WORD-BASED PLAN CONFIGURATION - now using environment variables  
 const PLAN_CONFIGS: Record<string, {
   plan_type: string;
   words_limit: number;
@@ -24,21 +24,21 @@ const PLAN_CONFIGS: Record<string, {
   price: number;
   name: string;
 }> = {
-  'price_1RWIGTR2giDQL8gT2b4fgQeD': {
+  [process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID!]: {
     plan_type: 'Basic',
     words_limit: PLAN_LIMITS.Basic,
     transformations_limit: PLAN_TRANSFORMATIONS.Basic,
     price: PLAN_PRICING.Basic.price / 100, // Convert from cents
     name: 'Basic Plan'
   },
-  'price_1RWIH9R2giDQL8gTtQ0SIOlM': {
+  [process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID!]: {
     plan_type: 'Plus',
     words_limit: PLAN_LIMITS.Plus,
     transformations_limit: PLAN_TRANSFORMATIONS.Plus,
     price: PLAN_PRICING.Plus.price / 100, // Convert from cents
     name: 'Plus Plan'
   },
-  'price_1RWIHvR2giDQL8gTI17qjZmD': {
+  [process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID!]: {
     plan_type: 'Ultra',
     words_limit: PLAN_LIMITS.Ultra,
     transformations_limit: PLAN_TRANSFORMATIONS.Ultra,

@@ -89,9 +89,9 @@ export async function POST(request: NextRequest) {
     
     // Get price configurations
     const priceConfigs: Record<string, { name: string; words: number; amount: number }> = {
-      'price_1RWIGTR2giDQL8gT2b4fgQeD': { name: 'Basic', words: 5000, amount: 699 },
-      'price_1RWIH9R2giDQL8gTtQ0SIOlM': { name: 'Plus', words: 15000, amount: 1999 },
-      'price_1RWIHvR2giDQL8gTI17qjZmD': { name: 'Ultra', words: 35000, amount: 3999 }
+      [process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID!]: { name: 'Basic', words: 5000, amount: 699 },
+      [process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID!]: { name: 'Plus', words: 15000, amount: 1999 },
+      [process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID!]: { name: 'Ultra', words: 35000, amount: 3999 }
     };
     
     const currentPlan = priceConfigs[currentPriceId as keyof typeof priceConfigs];

@@ -117,9 +117,9 @@ function getPlanDetailsFromStatus(isActive: boolean, priceId?: string): {
   
   // Map price IDs to plan types
   const priceToplan: Record<string, string> = {
-    'price_1RWIGTR2giDQL8gT2b4fgQeD': 'Basic',
-    'price_1RWIH9R2giDQL8gTtQ0SIOlM': 'Plus',
-    'price_1RWIHvR2giDQL8gTI17qjZmD': 'Ultra'
+    [process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID!]: 'Basic',
+    [process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID!]: 'Plus',
+    [process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID!]: 'Ultra'
   };
   
   const planType = priceId && priceToplan[priceId] ? priceToplan[priceId] : 'Basic';
