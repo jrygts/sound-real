@@ -67,49 +67,62 @@ export async function POST(request: Request) {
         );
       }
     } else {
-              // Handle authenticated users with new word-based billing
-        const isAdmin = isUserAdmin({ email: user.email, id: user.id });
-        
-        if (!isAdmin) {
-          // Get current usage before processing
-          try {
-            const usageResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "https://sound-real.com" : "http://localhost:3000")}/api/subscription/usage`, {
-              method: 'GET',
-              headers: {
-                'Cookie': request.headers.get('Cookie') || '',
-                'Authorization': `Bearer ${request.headers.get('Authorization')?.replace('Bearer ', '') || ''}`,
-              },
-            });
+      // Handle authenticated users with new word-based billing
+      const isAdmin = isUserAdmin({ email: user.email, id: user.id });
+      
+      if (!isAdmin) {
+        // Get current usage directly from database instead of internal API call
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select(`
+              plan_type, 
+              words_used, 
+              words_limit, 
+              stripe_subscription_status, 
+              has_access
+            `)
+            .eq("id", user.id)
+            .single();
 
-            if (!usageResponse.ok) {
-              console.error('📊 [Transform] Failed to get usage data');
-              return NextResponse.json(
-                { error: "Unable to check usage limits. Please try again." },
-                { status: 500 }
-              );
-            }
-
-            const usageData = await usageResponse.json();
-            const usage = usageData.usage;
-
-            // console.log removed for prod (`📊 [Usage] Current: ${usage.words_used}/${usage.words_limit} words, Plan: ${usage.plan}`);
-
-            /* Guard: refuse if this job would exceed quota */
-            if (usage.words_used + wordsToProcess > usage.words_limit && usage.words_limit !== -1) {
-              return NextResponse.json(
-                { error: "limit-reached", words_remaining: usage.words_limit - usage.words_used },
-                { status: 403 },
-              );
-            }
-
-          } catch (error) {
-            console.error('📊 [Transform] Usage check error:', error);
+          if (profileError) {
+            console.error('📊 [Transform] Profile fetch error:', profileError);
             return NextResponse.json(
-              { error: "Unable to verify usage limits. Please try again." },
+              { error: "Unable to check usage limits. Please try again." },
               { status: 500 }
             );
           }
+
+          const wordsUsed = profile?.words_used || 0;
+          const wordsLimit = profile?.words_limit || 0;
+          const hasAccess = profile?.has_access || false;
+
+          // console.log removed for prod (`📊 [Usage] Current: ${wordsUsed}/${wordsLimit} words, Plan: ${profile?.plan_type}, Access: ${hasAccess}`);
+
+          // Check if user has access to the service
+          if (!hasAccess) {
+            return NextResponse.json(
+              { error: "No active subscription found. Please upgrade your plan." },
+              { status: 403 }
+            );
+          }
+
+          /* Guard: refuse if this job would exceed quota */
+          if (wordsUsed + wordsToProcess > wordsLimit && wordsLimit !== -1) {
+            return NextResponse.json(
+              { error: "limit-reached", words_remaining: wordsLimit - wordsUsed },
+              { status: 403 },
+            );
+          }
+
+        } catch (error) {
+          console.error('📊 [Transform] Usage check error:', error);
+          return NextResponse.json(
+            { error: "Unable to verify usage limits. Please try again." },
+            { status: 500 }
+          );
         }
+      }
     }
     
     // All checks passed - proceed with transformation
