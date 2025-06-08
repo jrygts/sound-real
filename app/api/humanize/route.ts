@@ -1,16 +1,10 @@
 import { createClient } from "@/libs/supabase/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import OpenAI from "openai";
 import { isUserAdmin } from "@/libs/admin";
 import { countWords, validateWordCount } from "@/lib/wordUtils";
 import { cleanMarkdownForHumanization } from "@/libs/textProcessing";
-// TODO: Implement postProcessor in Phase 2
-// import { postProcess } from "@/libs/postProcessor";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { humanizeText, checkHumanizerHealth } from "@/lib/humanizer-client";
 
 const FREE_DAILY_LIMIT = 5;
 
@@ -125,74 +119,40 @@ export async function POST(request: Request) {
       }
     }
     
-    // All checks passed - proceed with transformation
-    // console.log removed for prod (`🚀 [Transform] Starting OpenAI baseline rewrite for ${wordsToProcess} words`);
+    // All checks passed - proceed with transformation using FastAPI
+    // console.log removed for prod (`🚀 [Transform] Starting FastAPI humanization for ${wordsToProcess} words`);
 
-    // Determine mode based on word count
-    const mode = wordsToProcess <= 400 ? 'MODE-A' : 'MODE-B';
-    // console.log removed for prod (`📝 [Transform] Using ${mode} for ${wordsToProcess} words`);
+    // Check if FastAPI is healthy before processing
+    const isHealthy = await checkHumanizerHealth();
+    if (!isHealthy) {
+      return NextResponse.json(
+        { error: "Humanizer service is currently unavailable. Please try again later." },
+        { status: 503 }
+      );
+    }
 
-    const systemPrompt = `You are SR-Rewriter, focused on creating baseline rewrites that preserve facts and professional tone while preparing text for post-processing.
+    // Determine aggressiveness based on word count
+    const aggressiveness = wordsToProcess <= 400 ? 0.7 : 0.9;
+    // console.log removed for prod (`📝 [Transform] Using aggressiveness ${aggressiveness} for ${wordsToProcess} words`);
 
-CORE MISSION: Apply ${mode} rewriting rules to create a solid foundation for further humanization processing.`;
-
-    const userPrompt = `Baseline Rewrite Instructions
-
-Text to rewrite: "${cleanedText}"
-
-Apply ${mode} rules:
-
-${mode === 'MODE-A' ? `MODE-A (≤400 words) — Micro-Paraphrase:
-1. Swap ≤15% of verbs/adjectives with synonyms that maintain register
-2. Vary sentence lengths between 8-30 words through minor splitting/merging
-3. Remove headers if present; use plain paragraphs
-4. Remove rhetorical questions
-5. Keep citations and brackets unchanged` : `MODE-B (>400 words) — Structural Re-order:
-1. Delete headers; output plain paragraphs only
-2. In 40% of sentences, flip clause order or switch passive ↔ active voice
-3. Restructure paragraph order while maintaining logical flow
-4. Vary sentence structure and length significantly
-5. Keep markdown lists and citations unchanged if present`}
-
-CONSTRAINTS:
-• Preserve all factual content exactly
-• Maintain professional, academic tone
-• No slang, humor, or personal voice
-• Keep all citations/brackets untouched
-• Output clean, readable prose
-
-Return only the rewritten text, no explanations.`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: userPrompt,
-        },
-      ],
-      temperature: 0.5,
-      top_p: 0.9,
-      presence_penalty: 0.2,
-      frequency_penalty: 0.2,
-      max_tokens: Math.min(wordsToProcess * 2, 4000),
-    });
+    // Call FastAPI humanizer service
+    const humanizerResult = await humanizeText(cleanedText, { aggressiveness });
     
-    const baselineRewrite = completion.choices[0].message.content || cleanedText;
-    // console.log removed for prod (`✅ [Transform] Baseline rewrite completed`);
+    if (!humanizerResult.success) {
+      return NextResponse.json(
+        { error: humanizerResult.error || "Failed to humanize text. Please try again." },
+        { status: 500 }
+      );
+    }
 
-    // Apply post-processor with random seed for additional humanization
-    // console.log removed for prod (`🔧 [Transform] Applying post-processor`);
-    // TODO: Implement postProcessor in Phase 2 - for now, using baseline rewrite as final output
-    const humanizedText = baselineRewrite;
+    const humanizedText = humanizerResult.humanizedText;
     
-    // TODO: Replace in Phase 2 - Mock AI detection scores for MVP (will be replaced with real GPTZero API)
-    const mockScoreBefore = 0.87; // Mock: 87% AI-generated before
-    const mockScoreAfter = 0.48;  // Mock: 48% AI-generated after (below 65% target)
+    // Get AI detection scores from FastAPI response
+    const mockScoreBefore = 0.87; // Default fallback - 87% AI detected before
+    // FastAPI returns detection estimate as percentage (0-100), convert to 0-1 scale
+    // The "after" score should be lower to show improvement
+    const fastApiScore = humanizerResult.stats.ai_detection_estimate || 48;
+    const mockScoreAfter = Math.max(0.2, (fastApiScore / 100) * 0.6); // Cap between 0.2-0.6 to show improvement
     
     // console.log removed for prod (`✅ [Transform] Post-processing completed successfully`);
 

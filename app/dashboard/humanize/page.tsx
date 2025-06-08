@@ -35,21 +35,19 @@ export default function HumanizePage() {
         body: JSON.stringify({ text }),
       })
 
-      if (res.status === 403) {
-        const data = await res.json()
-        if (data.error === "limit-reached") {
+      // Read response body only once
+      const data = await res.json()
+
+      if (!res.ok) {
+        // Handle specific 403 error case
+        if (res.status === 403 && data.error === "limit-reached") {
           setWordsRemaining(data.words_remaining ?? 0)
           setLimitModalOpen(true)
           return
         }
+        // Handle all other errors
+        throw new Error(data.error || "Failed to humanize text")
       }
-
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || "Failed to humanize text")
-      }
-
-      const data = await res.json()
       // Map the API response to match the expected format
       setResult({
         transformed: data.humanizedText,
