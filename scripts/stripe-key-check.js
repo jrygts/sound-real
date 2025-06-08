@@ -11,6 +11,17 @@ const { execSync } = require('child_process');
 
 console.log('🔍 Checking for Stripe test keys...\n');
 
+// Check if this is a preview/development environment
+const isPreview = process.env.VERCEL_ENV === 'preview' || 
+                  process.env.NODE_ENV === 'development' || 
+                  process.env.VERCEL_GIT_COMMIT_REF !== 'main';
+
+if (isPreview) {
+  console.log('🔧 Preview/development environment detected - allowing test keys');
+  console.log('✅ PREVIEW BUILD: Test keys are allowed in preview environments');
+  process.exit(0);
+}
+
 let hasTestKeys = false;
 
 // Check environment variables
