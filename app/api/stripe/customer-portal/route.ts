@@ -29,8 +29,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create customer portal session
-    const returnUrl = `${process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "https://sound-real.com" : "http://localhost:3000")}/dashboard/billing`;
+    // Create customer portal session - use production URL for deployed environments
+    const getReturnUrl = () => {
+      const envUrl = process.env.NEXT_PUBLIC_SITE_URL
+      // If we have localhost in env but we're in production/preview, use sound-real.com
+      if (envUrl?.includes('localhost') && process.env.VERCEL_ENV) {
+        return process.env.VERCEL_ENV === 'production' 
+          ? 'https://sound-real.com' 
+          : `https://${process.env.VERCEL_URL}`
+      }
+      return envUrl || (process.env.NODE_ENV === "production" ? "https://sound-real.com" : "http://localhost:3000")
+    }
+    const returnUrl = `${getReturnUrl()}/dashboard/billing`;
     const portalUrl = await createCustomerPortal({
       customerId: profile.customer_id,
       returnUrl,

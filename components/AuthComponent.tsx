@@ -14,11 +14,16 @@ export default function AuthComponent() {
 
   // Create absolute URL for redirectTo (Supabase requires absolute URLs)
   // Must match EXACTLY with Supabase → Auth → Settings → Site URL
-  const SITE =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-    (typeof window !== "undefined" ? window.location.origin : "https://sound-real.com");
+  const getSiteUrl = () => {
+    // If env URL is localhost but we're not on localhost, use current origin
+    const envUrl = process.env.NEXT_PUBLIC_SITE_URL
+    if (envUrl?.includes('localhost') && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+      return window.location.origin
+    }
+    return envUrl?.replace(/\/+$/, "") || (typeof window !== "undefined" ? window.location.origin : "https://sound-real.com")
+  }
 
-  const redirectUrl = `${SITE}/auth/post-login`;
+  const redirectUrl = `${getSiteUrl()}/auth/post-login`;
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
