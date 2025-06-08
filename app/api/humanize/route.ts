@@ -137,9 +137,21 @@ export async function POST(request: Request) {
     // console.log removed for prod (`📝 [Transform] Using aggressiveness ${aggressiveness} for ${wordsToProcess} words`);
 
     // Call FastAPI humanizer service
-    const humanizerResult = await humanizeText(cleanedText, { aggressiveness });
+    let humanizerResult;
+    try {
+      console.log('📝 [Transform] Calling FastAPI with aggressiveness:', aggressiveness);
+      humanizerResult = await humanizeText(cleanedText, { aggressiveness });
+      console.log('📝 [Transform] FastAPI response success:', humanizerResult.success);
+    } catch (error) {
+      console.error('📝 [Transform] FastAPI call failed:', error);
+      return NextResponse.json(
+        { error: `FastAPI call failed: ${error.message}` },
+        { status: 500 }
+      );
+    }
     
     if (!humanizerResult.success) {
+      console.error('📝 [Transform] FastAPI returned error:', humanizerResult.error);
       return NextResponse.json(
         { error: humanizerResult.error || "Failed to humanize text. Please try again." },
         { status: 500 }
