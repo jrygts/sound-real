@@ -122,14 +122,15 @@ export async function POST(request: Request) {
     // All checks passed - proceed with transformation using FastAPI
     // console.log removed for prod (`🚀 [Transform] Starting FastAPI humanization for ${wordsToProcess} words`);
 
-    // Check if FastAPI is healthy before processing
-    const isHealthy = await checkHumanizerHealth();
-    if (!isHealthy) {
-      return NextResponse.json(
-        { error: "Humanizer service is currently unavailable. Please try again later." },
-        { status: 503 }
-      );
-    }
+    // Skip health check for now - FastAPI service is stable
+    // TODO: Re-enable health check with better timeout handling
+    // const isHealthy = await checkHumanizerHealth();
+    // if (!isHealthy) {
+    //   return NextResponse.json(
+    //     { error: "Humanizer service is currently unavailable. Please try again later." },
+    //     { status: 503 }
+    //   );
+    // }
 
     // Determine aggressiveness based on word count
     const aggressiveness = wordsToProcess <= 400 ? 0.7 : 0.9;
