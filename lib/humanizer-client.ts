@@ -71,8 +71,8 @@ export async function checkHumanizerHealth(): Promise<boolean> {
       headers: {
         'Content-Type': 'application/json',
       },
-      // Timeout for health checks
-      signal: AbortSignal.timeout(5000)
+      // Longer timeout for serverless-to-serverless calls
+      signal: AbortSignal.timeout(15000)
     });
     
     return response.ok;
@@ -102,15 +102,48 @@ export async function humanizeText(
       target_detection_rate: 20.0
     };
 
-    const response = await fetch(`${HUMANIZER_API_URL}/humanize`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-      // Timeout for processing requests (30 seconds for large texts)
-      signal: AbortSignal.timeout(30000)
-    });
+    // Retry logic for network issues between Vercel and Render
+    let response;
+    let lastError;
+    const maxRetries = 3;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[Humanizer] Attempt ${attempt}/${maxRetries} calling FastAPI`);
+        
+        response = await fetch(`${HUMANIZER_API_URL}/humanize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+          // Longer timeout for serverless-to-serverless calls (60 seconds)
+          signal: AbortSignal.timeout(60000)
+        });
+        
+        // If we get here, the fetch succeeded
+        break;
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`[Humanizer] Attempt ${attempt} failed:`, error.message);
+        
+        // If this is the last attempt, don't wait
+        if (attempt === maxRetries) {
+          break;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`[Humanizer] Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    // If all attempts failed
+    if (!response) {
+      throw new Error(`FastAPI connection failed after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
+    }
 
     const data = await response.json();
 
