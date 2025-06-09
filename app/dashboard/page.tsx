@@ -42,10 +42,18 @@ export default function DashboardOverviewPage() {
           }
         }
 
-        // Fetch recent transformations
+        // Fetch recent transformations - ONLY for current user
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          setError("Please log in to view your dashboard")
+          return
+        }
+
         const { data: transformations, error: supabaseError } = await supabase
           .from('transformations')
           .select('*')
+          .eq('user_id', user.id) // CRITICAL: Filter by current user only
           .order('created_at', { ascending: false })
           .limit(5)
 

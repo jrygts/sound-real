@@ -221,68 +221,45 @@ async function autoCorrectPlanType(
 export async function GET() {
   try {
     const supabase = createClient();
+    
+    // Authenticate user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-
+    
     if (authError || !user) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { 
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }
+      return NextResponse.json(
+        { error: "Not authenticated" },
+        { status: 401 }
       );
     }
 
-    // Check if user is admin first - admins get unlimited access
+    // Check if user is admin (admins get unlimited access)
     const isAdmin = isUserAdmin({ email: user.email, id: user.id });
     
     if (isAdmin) {
-      return new NextResponse(
-        JSON.stringify({
-          success: true,
-          usage: {
-            words_used: 0,
-            words_limit: -1,
-            words_remaining: -1,
-            totalUsed: 0,
-            limit: -1, // -1 indicates unlimited
-            remaining: -1,
-            plan: "Admin",
-            hasAccess: true,
-            isAdmin: true,
-          } as UsageData
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+      return NextResponse.json({
+        usage: {
+          words_used: 0,
+          words_limit: -1, // Unlimited
+          transformations_used: 0,
+          transformations_limit: -1, // Unlimited
+          plan_type: "Admin",
+          has_access: true
         }
-      );
+      });
     }
 
-    // Get user profile with word-based billing information
+    // Fetch user's profile data - RLS will ensure only their data is returned
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select(`
-        plan_type, 
-        words_used, 
-        words_limit, 
-        transformations_used, 
-        transformations_limit, 
-        stripe_subscription_status, 
-        stripe_customer_id, 
-        stripe_subscription_id,
-        period_start_date,
-        last_reset_date,
+        id,
+        words_used,
+        words_limit,
+        transformations_used,
+        transformations_limit,
+        plan_type,
+        has_access,
+        stripe_subscription_status,
         billing_period_start,
         billing_period_end
       `)
@@ -291,137 +268,39 @@ export async function GET() {
 
     if (profileError) {
       console.error('📊 [Usage] Profile fetch error:', profileError);
-      return new NextResponse(
-        JSON.stringify({ error: 'Failed to fetch usage data' }),
-        { 
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }
+      return NextResponse.json(
+        { error: "Failed to fetch usage data" },
+        { status: 500 }
       );
     }
 
-    // Auto-correct plan type if we have Stripe details
-    let finalPlan = profile?.plan_type || 'Free';
-    let finalWordsLimit = profile?.words_limit || 0;
-    let finalTransformationsLimit = profile?.transformations_limit || 5;
-    let corrected = false;
-
-    if (profile?.stripe_customer_id) {
-      console.log('📊 [Usage] 🔍 Attempting real-time plan verification...');
-      
-      const correctionResult = await autoCorrectPlanType(
-        supabase,
-        user.id,
-        profile.stripe_customer_id,
-        profile.stripe_subscription_id,
-        profile.plan_type
+    if (!profile) {
+      return NextResponse.json(
+        { error: "Profile not found" },
+        { status: 404 }
       );
-      
-      finalPlan = correctionResult.planType;
-      finalWordsLimit = correctionResult.wordsLimit;
-      finalTransformationsLimit = correctionResult.transformationsLimit;
-      corrected = correctionResult.corrected;
-      
-      if (corrected) {
-        console.log('📊 [Usage] ✅ Plan auto-corrected in usage check');
-      }
     }
 
-    // Calculate word usage
-    const wordsUsed = profile?.words_used || 0;
-    const wordsRemaining = finalWordsLimit === 0 ? 0 : Math.max(0, finalWordsLimit - wordsUsed);
-    
-    // Calculate transformation usage (for backward compatibility)
-    const transformationsUsed = profile?.transformations_used || 0;
-    const transformationsRemaining = finalTransformationsLimit === -1 ? -1 : 
-      Math.max(0, finalTransformationsLimit - transformationsUsed);
-
-    // Determine access based on plan type
-    let hasAccess = false;
-    if (finalPlan === 'Free') {
-      // Free users have access if they have transformations remaining
-      hasAccess = transformationsRemaining > 0;
-    } else {
-      // Paid users have access if they have words remaining
-      hasAccess = wordsRemaining > 0 || finalWordsLimit === -1;
-    }
-
-    // Calculate billing period dates
-    const config = getPlanConfig(finalPlan);
-    const periodStart = profile?.billing_period_start 
-      ? new Date(profile.billing_period_start) 
-      : (profile?.period_start_date ? new Date(profile.period_start_date) : new Date());
-    
-    const periodEnd = profile?.billing_period_end 
-      ? new Date(profile.billing_period_end)
-      : getNextResetDate(finalPlan, periodStart);
-    
-    const daysRemaining = calculateDaysRemaining(periodEnd);
-
-    const response: any = {
-      success: true,
+    // Return usage data
+    return NextResponse.json({
       usage: {
-        // Word-based usage (primary)
-        words_used: wordsUsed,
-        words_limit: finalWordsLimit,
-        words_remaining: wordsRemaining,
-        
-        // Legacy transformation-based usage
-        totalUsed: transformationsUsed,
-        limit: finalTransformationsLimit,
-        remaining: transformationsRemaining,
-        
-        plan: finalPlan,
-        hasAccess,
-        isAdmin: false,
-        resetDate: periodEnd.toISOString(),
-        billing_period_start: periodStart.toISOString(),
-        billing_period_end: periodEnd.toISOString(),
-        days_remaining: daysRemaining,
-        
-        // Legacy transformation data for backward compatibility
-        transformations_used: transformationsUsed,
-        transformations_limit: getTransformationsLimit(finalPlan),
-        transformations_remaining: Math.max(0, getTransformationsLimit(finalPlan) - transformationsUsed)
-      } as UsageData
-    };
-
-    if (corrected) {
-      response.message = `Plan auto-corrected to ${finalPlan} based on Stripe data`;
-    }
-
-    return new NextResponse(
-      JSON.stringify(response),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'X-Timestamp': new Date().toISOString()
-        }
+        words_used: profile.words_used || 0,
+        words_limit: profile.words_limit || 5000,
+        transformations_used: profile.transformations_used || 0,
+        transformations_limit: profile.transformations_limit || 200,
+        plan_type: profile.plan_type || "Free",
+        has_access: profile.has_access || false,
+        stripe_subscription_status: profile.stripe_subscription_status,
+        billing_period_start: profile.billing_period_start,
+        billing_period_end: profile.billing_period_end
       }
-    );
+    });
 
   } catch (error) {
-    console.error('📊 [Usage] Usage check error:', error);
-    return new NextResponse(
-      JSON.stringify({ error: 'Usage check failed' }),
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      }
+    console.error('📊 [Usage] API Error:', error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
 }
