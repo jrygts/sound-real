@@ -5,6 +5,7 @@ import { isUserAdmin } from "@/libs/admin";
 import { countWords, validateWordCount } from "@/lib/wordUtils";
 import { cleanMarkdownForHumanization } from "@/libs/textProcessing";
 import { humanizeText, checkHumanizerHealth } from "@/lib/humanizer-client";
+import { PostgrestError } from "@supabase/supabase-js";
 
 const FREE_DAILY_LIMIT = 5;
 
@@ -187,19 +188,30 @@ export async function POST(request: Request) {
         const isAdmin = isUserAdmin({ email: user.email, id: user.id });
         
         if (!isAdmin) {
-          const { error: incErr } = await supabase.rpc("increment_words_used", {
-            uid: user.id,
-            add_words: wordsToProcess,
-          });
-          
-          if (incErr) {
-            if (incErr.message.includes("limit-reached")) {
-              return NextResponse.json(
-                { error: "limit-reached", words_remaining: 0 },
-                { status: 403 },
-              );
+          try {
+            const { error: incErr } = await supabase.rpc("increment_words_used", {
+              uid: user.id,
+              add_words: wordsToProcess,
+            });
+            
+            if (incErr) {
+              if (incErr.message.includes("limit-reached")) {
+                return NextResponse.json(
+                  { error: "limit-reached", words_remaining: 0 },
+                  { status: 403 },
+                );
+              }
+              throw incErr;
             }
-            throw incErr;
+          } catch (error) {
+            // Handle missing increment_words_used function gracefully
+            // TODO: Remove this fallback once increment_words_used is deployed to production
+            if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST202') {
+              console.warn('⚠️ [Transform] increment_words_used function not found in database - skipping usage increment');
+            } else {
+              // Re-throw any other errors
+              throw error;
+            }
           }
         }
       } catch (error) {
